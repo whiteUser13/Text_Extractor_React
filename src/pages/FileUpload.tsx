@@ -22,7 +22,6 @@ import { processingService } from '@/services/processingService';
 import { 
   getSupportedFileTypes, 
   formatFileSize, 
-  validateFileSize, 
   generateFileId,
   isImageFile,
   isPdfFile,
@@ -68,9 +67,10 @@ const FileUpload: React.FC = () => {
       return `不支持的文件类型: ${file.type}`;
     }
     
-    if (!validateFileSize(file)) {
-      return '文件大小超过10MB限制';
-    }
+    // 移除文件大小限制，允许上传任意大小的文件
+    // if (!validateFileSize(file)) {
+    //   return '文件大小超过10MB限制';
+    // }
     
     return null;
   };
@@ -244,7 +244,7 @@ const FileUpload: React.FC = () => {
             文件上传与管理
           </h1>
           <p className="text-lg text-gray-600">
-            支持PDF、Word、图片等多种格式，最大10MB
+            支持PDF、Word、图片等多种格式，无文件大小限制
           </p>
         </div>
 
@@ -313,6 +313,7 @@ const FileUpload: React.FC = () => {
                     <Badge variant="outline">图片 (jpg/png/bmp)</Badge>
                     <Badge variant="outline">压缩包 (zip)</Badge>
                   </div>
+                  <p className="text-xs text-green-600 mt-2">✓ 无文件大小限制</p>
                 </div>
               </CardContent>
             </Card>
