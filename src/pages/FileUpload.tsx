@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -35,6 +35,7 @@ const FileUpload: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 获取文件图标
   const getFileIcon = (file: File | FileInfo) => {
@@ -267,7 +268,7 @@ const FileUpload: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
                     dragActive 
                       ? 'border-blue-500 bg-blue-50' 
                       : 'border-gray-300 hover:border-gray-400'
@@ -276,6 +277,7 @@ const FileUpload: React.FC = () => {
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-lg font-medium text-gray-900 mb-2">
@@ -290,17 +292,16 @@ const FileUpload: React.FC = () => {
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.bmp,.zip"
                     onChange={handleFileInput}
                     className="hidden"
-                    id="file-upload"
+                    ref={fileInputRef}
                   />
-                  <label htmlFor="file-upload">
-                    <Button 
-                      variant="outline" 
-                      className="cursor-pointer"
-                      disabled={isUploading}
-                    >
-                      {isUploading ? '上传中...' : '选择文件'}
-                    </Button>
-                  </label>
+                  <Button 
+                    variant="outline" 
+                    className="cursor-pointer"
+                    disabled={isUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {isUploading ? '上传中...' : '选择文件'}
+                  </Button>
                 </div>
 
                 {/* 支持的文件类型 */}
