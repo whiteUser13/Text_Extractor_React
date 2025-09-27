@@ -15,6 +15,7 @@ export interface FileInfo {
   status: 'uploading' | 'uploaded' | 'processing' | 'completed' | 'error';
   progress?: number;
   errorMessage?: string;
+  parseResult?: DocumentParseResult; // 添加解析结果
 }
 
 // 处理阶段类型

@@ -14,7 +14,9 @@ import {
   CheckCircle, 
   AlertCircle,
   Download,
-  Trash2
+  Trash2,
+  Eye,
+  Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { dataService } from '@/services/dataService';
@@ -27,12 +29,15 @@ import {
   isPdfFile,
   isWordFile
 } from '@/utils/fileUtils';
-import type { FileInfo } from '@/types';
+import type { FileInfo, DocumentParseResult } from '@/types';
+import FilePreview from '@/components/FilePreview';
 
 const FileUpload: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +78,162 @@ const FileUpload: React.FC = () => {
     // }
     
     return null;
+  };
+
+  // 生成模拟解析结果
+  const generateMockParseResult = (file: FileInfo): DocumentParseResult => {
+    const isImage = isImageFile({ type: file.type } as File);
+    const isPdf = isPdfFile({ type: file.type } as File);
+    const isWord = isWordFile({ type: file.type } as File);
+    
+    // 根据文件类型生成不同的模拟内容
+    let mockContent = {
+      text: '',
+      tables: [] as any[],
+      images: [] as any[],
+      structure: {
+        title: '',
+        sections: [] as any[],
+        pageCount: 1
+      }
+    };
+
+    if (isImage) {
+      mockContent = {
+        text: '通过OCR识别提取的文本内容：\n\n这是一个示例图片文件，包含了一些文本信息。OCR技术已成功识别出图片中的文字内容，包括标题、正文和其他相关信息。',
+        tables: [],
+        images: [{
+          title: '原始图片',
+          description: '上传的图片文件',
+          page: 1
+        }],
+        structure: {
+          title: file.name,
+          sections: [{
+            title: 'OCR识别结果',
+            level: 1,
+            page: 1,
+            content: '图片中识别出的文本内容'
+          }],
+          pageCount: 1
+        }
+      };
+    } else if (isPdf) {
+      mockContent = {
+        text: `${file.name} - PDF文档解析结果\n\n第一章 概述\n本文档是一个示例PDF文件，包含了多个章节和丰富的内容结构。\n\n第二章 详细内容\n这里是文档的详细内容部分，包含了大量的文本信息、数据表格和图表。\n\n第三章 数据分析\n本章节包含了详细的数据分析结果和相关图表。\n\n第四章 结论\n基于前面的分析，我们得出了以下结论...`,
+        tables: [
+          {
+            title: '数据统计表',
+            headers: ['项目', '数值', '单位', '备注'],
+            rows: [
+              ['总数量', '1,234', '个', '统计截止到当前'],
+              ['平均值', '56.78', '%', '计算方法：总和/数量'],
+              ['最大值', '99.9', '%', '历史最高记录'],
+              ['最小值', '12.3', '%', '历史最低记录']
+            ],
+            page: 2
+          },
+          {
+            title: '分类汇总表',
+            headers: ['类别', '数量', '占比'],
+            rows: [
+              ['类别A', '456', '37%'],
+              ['类别B', '389', '31%'],
+              ['类别C', '389', '32%']
+            ],
+            page: 3
+          }
+        ],
+        images: [
+          {
+            title: '图1 趋势分析图',
+            description: '显示了过去12个月的数据变化趋势',
+            page: 2
+          },
+          {
+            title: '图2 分布图',
+            description: '各类别数据的分布情况',
+            page: 3
+          }
+        ],
+        structure: {
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          sections: [
+            { title: '概述', level: 1, page: 1, content: '文档概述内容' },
+            { title: '详细内容', level: 1, page: 1, content: '详细内容描述' },
+            { title: '数据分析', level: 1, page: 2, content: '数据分析结果' },
+            { title: '统计图表', level: 2, page: 2, content: '各类统计图表' },
+            { title: '趋势分析', level: 2, page: 2, content: '数据趋势分析' },
+            { title: '结论', level: 1, page: 3, content: '分析结论' }
+          ],
+          pageCount: 3
+        }
+      };
+    } else if (isWord) {
+      mockContent = {
+        text: `${file.name} - Word文档解析结果\n\n标题：报告文档\n\n1. 引言\n本报告旨在分析当前的业务状况并提出改进建议。\n\n2. 现状分析\n通过对现有数据的分析，我们发现了以下几个关键问题：\n- 效率有待提升\n- 成本控制需要加强\n- 质量管理需要完善\n\n3. 改进建议\n基于以上分析，我们提出以下改进建议：\n- 优化工作流程\n- 引入新技术\n- 加强培训\n\n4. 实施计划\n改进措施的具体实施计划如下...`,
+        tables: [
+          {
+            title: '实施计划表',
+            headers: ['阶段', '任务', '负责人', '完成时间'],
+            rows: [
+              ['第一阶段', '需求分析', '张三', '2024-01-15'],
+              ['第二阶段', '方案设计', '李四', '2024-02-15'],
+              ['第三阶段', '系统开发', '王五', '2024-04-15'],
+              ['第四阶段', '测试验收', '赵六', '2024-05-15']
+            ],
+            page: 2
+          }
+        ],
+        images: [
+          {
+            title: '流程图',
+            description: '业务流程优化示意图',
+            page: 1
+          }
+        ],
+        structure: {
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          sections: [
+            { title: '引言', level: 1, page: 1, content: '报告引言部分' },
+            { title: '现状分析', level: 1, page: 1, content: '当前状况分析' },
+            { title: '改进建议', level: 1, page: 2, content: '具体改进建议' },
+            { title: '实施计划', level: 1, page: 2, content: '详细实施计划' }
+          ],
+          pageCount: 2
+        }
+      };
+    } else {
+      // 其他文件类型的默认内容
+      mockContent = {
+        text: `${file.name} - 文件解析结果\n\n这是一个通用文件的解析结果。系统已成功提取了文件中的基本信息和内容结构。`,
+        tables: [],
+        images: [],
+        structure: {
+          title: file.name,
+          sections: [{
+            title: '文件内容',
+            level: 1,
+            page: 1,
+            content: '解析出的文件内容'
+          }],
+          pageCount: 1
+        }
+      };
+    }
+
+    return {
+      id: generateFileId(),
+      fileId: file.id,
+      content: mockContent,
+      parsedAt: new Date()
+    };
+  };
+
+  // 处理预览
+  const handlePreview = (file: FileInfo) => {
+    setPreviewFile(file);
+    setPreviewOpen(true);
   };
 
   // 处理文件选择
@@ -134,7 +295,22 @@ const FileUpload: React.FC = () => {
           
           // 模拟处理完成
           setTimeout(() => {
-            dataService.updateFile(fileInfo.id, { status: 'completed' });
+            // 生成解析结果
+            const parseResult = generateMockParseResult(fileInfo);
+            // 更新文件状态并添加解析结果
+            dataService.updateFile(fileInfo.id, { 
+              status: 'completed',
+              parseResult: parseResult
+            });
+            
+            // 更新本地状态
+            setUploadedFiles(prev => 
+              prev.map(f => 
+                f.id === fileInfo.id 
+                  ? { ...f, status: 'completed', parseResult: parseResult }
+                  : f
+              )
+            );
           }, 1500 + i * 300);
         }
 
@@ -390,10 +566,23 @@ const FileUpload: React.FC = () => {
                                 </span>
                               </div>
                               
+                              {/* 预览按钮 - 只有在文件处理完成时才显示 */}
+                              {file.status === 'completed' && file.parseResult && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handlePreview(file)}
+                                  title="预览解析结果"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                              
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => removeFile(file.id)}
+                                title="删除文件"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -454,6 +643,15 @@ const FileUpload: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* 文件预览对话框 */}
+      {previewFile && (
+        <FilePreview
+          file={previewFile}
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+        />
+      )}
     </div>
   );
 };
