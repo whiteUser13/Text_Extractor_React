@@ -1,99 +1,245 @@
-## 介绍
+# 报告文件智能化审核应用系统
 
-项目介绍
+## 系统概述
 
-## 目录结构
+报告文件智能化审核应用系统是一个基于人工智能技术的智能化报告审核平台，主要功能包括文件上传下载、格式转换、多模态内容解析、自定义规则提取和判别等。系统专门用于地块违规建设情况报告审核、土壤与水污染报告审核、地块报告中信息提取等业务场景。
 
-```
-├── README.md # 说明文档
-├── components.json # 组件库配置
-├── eslint.config.js # eslint 配置
-├── index.html # 入口文件
-├── package.json # 包管理
-├── postcss.config.js # postcss 配置
-├── public # 静态资源目录
-│   ├── favicon.png # 图标
-│   └── images # 图片资源
-├── src # 源码目录
-│   ├── App.tsx # 入口文件
-│   ├── components # 组件目录
-│   ├── context # 上下文目录
-│   ├── db # 数据库配置目录
-│   ├── hooks # 通用钩子函数目录
-│   ├── index.css # 全局样式
-│   ├── layout # 布局目录
-│   ├── lib # 工具库目录
-│   ├── main.tsx # 入口文件
-│   ├── routes.tsx # 路由配置
-│   ├── pages # 页面目录
-│   ├── services  # 数据库交互目录
-│   ├── types   # 类型定义目录
-├── tsconfig.app.json  # ts 前端配置文件
-├── tsconfig.json # ts 配置文件
-├── tsconfig.node.json # ts node端配置文件
-└── vite.config.ts # vite 配置文件
-```
+## 核心功能
 
-## 技术栈
+### 1. 系统首页（仪表板）
+- 系统概览信息展示
+- 处理报告数量统计
+- 过程环节错误信息统计
+- 具体处理进度展示
+- 报告处理阶段状态监控
+- 实时数据更新
 
-Vite、TypeScript、React、Supabase
+### 2. 文件上传与管理
+- 支持多种格式文件上传（PDF、Word、图片、压缩包等）
+- 拖拽上传功能
+- 文件信息监测记录（编号、文件名、格式、大小等）
+- 批量文件处理
+- 实时处理进度显示
 
-## 本地开发
+### 3. 内容检索与提取
+- 自定义提取规则配置
+- 基于关键词的内容检索
+- 特定章节定位
+- 页码范围指定
+- 结构化数据表生成
+- 提取结果导出功能
 
-### 如何在本地编辑代码？
+### 4. 智能判别分析
+- 自定义审核判别规则设计
+- 多种判别类型支持：
+  - 合规性判别
+  - 等级分类判别
+  - 含义解释判别
+- AI驱动的智能分析
+- 判别结果结构化输出
 
-您可以选择 [VSCode](https://code.visualstudio.com/Download) 或者您常用的任何 IDE 编辑器，唯一的要求是安装 Node.js 和 npm.
+### 5. AI智能助手
+- 专业的报告文件分析助手
+- 支持文本对话和图片分析
+- 基于已处理文件的智能问答
+- 多模态内容理解
+- 对话记录管理
+
+## 技术架构
+
+### 前端技术栈
+- **框架**: React 18 + TypeScript
+- **构建工具**: Vite
+- **UI组件**: shadcn/ui + Tailwind CSS
+- **路由**: React Router
+- **状态管理**: React Context + Hooks
+- **图标**: Lucide React
+
+### 后端服务
+- **OCR识别**: 百度通用文字识别（高精度版）
+- **AI分析**: 文心一言多模态/文本生成大模型
+- **图像理解**: 图像内容理解API
+- **数据存储**: 本地数据服务（可扩展至Supabase）
+
+### 核心处理流程
+1. **转换**: 将报告文件转换为可解析的格式
+2. **解析**: 把报告内容解析为包含原有结构、页码、逻辑关系的可检索内容
+3. **检索**: 采用自定义检索规则进行内容检索
+4. **提取**: 对检索内容进行整理提取为结构化数据
+5. **判别**: 基于自定义判别规则输出结构化判别结果
+
+## 支持的文件格式
+
+- PDF格式文件
+- Word文档（doc、docx）
+- 图片格式（JPG、PNG、BMP）
+- 压缩包格式（ZIP）
+- 扫描件PDF
+
+## 多模态内容处理能力
+
+- 目录页识别
+- 文字文本处理（各级标题和内容文本）
+- 表格处理（表名识别）
+- 图表处理（图表名识别）
+- 图片处理（图名识别）
+- 页码识别
+- 页眉页脚处理
+
+## 应用场景
+
+- 地块违规建设情况报告审核
+- 土壤与水污染报告审核
+- 地块报告中信息提取
+- 其他各种报告审核业务
+
+## 系统特性
+
+- **自动化处理流程**: 全流程自动化处理，减少人工干预
+- **产品化界面设计**: 现代化UI设计，用户体验友好
+- **定型化操作规范**: 标准化操作流程，确保处理一致性
+- **批量处理能力**: 支持大批量文件同时处理
+- **实时进度监控**: 实时显示处理进度和状态
+- **错误统计分析**: 详细的错误统计和分析功能
+- **结构化数据导出**: 支持多种格式的结果导出
+
+## 快速开始
 
 ### 环境要求
 
-```
-# Node.js ≥ 20
-# npm ≥ 10
-例如：
-# node -v   # v20.18.3
-# npm -v    # 10.8.2
+```bash
+Node.js >= 18
+npm >= 8
 ```
 
-具体安装步骤如下：
+### 安装依赖
 
-### 在 Windows 上安装 Node.js
-
-```
-# Step 1: 访问Node.js官网：https://nodejs.org/，点击下载后，会根据你的系统自动选择合适的版本（32位或64位）。
-# Step 2: 运行安装程序：下载完成后，双击运行安装程序。
-# Step 3: 完成安装：按照安装向导完成安装过程。
-# Step 4: 验证安装：在命令提示符（cmd）或IDE终端（terminal）中输入 node -v 和 npm -v 来检查 Node.js 和 npm 是否正确安装。
+```bash
+npm install
 ```
 
-### 在 macOS 上安装 Node.js
+### 配置环境变量
 
-```
-# Step 1: 使用Homebrew安装（推荐方法）：打开终端。输入命令brew install node并回车。如果尚未安装Homebrew，需要先安装Homebrew，
-可以通过在终端中运行如下命令来安装：
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-或者使用官网安装程序：访问Node.js官网。下载macOS的.pkg安装包。打开下载的.pkg文件，按照提示完成安装。
-# Step 2: 验证安装：在命令提示符（cmd）或IDE终端（terminal）中输入 node -v 和 npm -v 来检查 Node.js 和 npm 是否正确安装。
-```
+在项目根目录创建 `.env` 文件：
 
-### 安装完后按照如下步骤操作：
+```env
+# 应用配置
+VITE_APP_ID=your_app_id
 
-```
-# Step 1: 下载代码包
-# Step 2: 解压代码包
-# Step 3: 用IDE打开代码包，进入代码目录
-# Step 4: IDE终端输入命令行，安装依赖：npm i
-# Step 5: IDE终端输入命令行，启动开发服务器：npm run dev -- --host 127.0.0.1
+# API配置
+VITE_API_BASE_URL=/api
+
+# 系统配置
+VITE_APP_NAME=报告文件智能化审核应用系统
+VITE_APP_DESCRIPTION=智能化报告审核平台，支持多格式文件处理、OCR识别、内容分析和自定义规则判别
 ```
 
-### 如何开发后端服务？
+### 启动开发服务器
 
-配置环境变量，安装相关依赖
-如需使用数据库，请使用 supabase 官方版本或自行部署开源版本的 Supabase
+```bash
+npm run dev
+```
 
-### 如何配置应用中的三方 API？
+### 构建生产版本
 
-具体三方 API 调用方法，请参考帮助文档：[源码导出](https://cloud.baidu.com/doc/MIAODA/s/Xmewgmsq7)，了解更多详细内容。
+```bash
+npm run build
+```
 
-## 了解更多
+## 项目结构
 
-您也可以查看帮助文档：[源码导出](https://cloud.baidu.com/doc/MIAODA/s/Xmewgmsq7)，了解更多详细内容。
+```
+├── README.md                 # 项目说明文档
+├── index.html               # HTML入口文件
+├── package.json             # 项目依赖配置
+├── vite.config.ts           # Vite配置文件
+├── tailwind.config.js       # Tailwind CSS配置
+├── tsconfig.json            # TypeScript配置
+├── public/                  # 静态资源目录
+├── src/                     # 源代码目录
+│   ├── components/          # 组件目录
+│   │   ├── ui/             # UI基础组件
+│   │   └── common/         # 通用组件
+│   ├── pages/              # 页面组件
+│   │   ├── Dashboard.tsx   # 系统首页
+│   │   ├── FileUpload.tsx  # 文件上传页面
+│   │   ├── ContentExtraction.tsx # 内容提取页面
+│   │   ├── IntelligentAnalysis.tsx # 智能判别页面
+│   │   └── AIAssistant.tsx # AI助手页面
+│   ├── services/           # 服务层
+│   │   ├── dataService.ts  # 数据服务
+│   │   ├── processingService.ts # 处理服务
+│   │   └── demoData.ts     # 演示数据
+│   ├── utils/              # 工具函数
+│   │   ├── api.ts          # API工具
+│   │   ├── chat.ts         # 聊天工具
+│   │   └── fileUtils.ts    # 文件工具
+│   ├── types/              # 类型定义
+│   ├── hooks/              # 自定义Hooks
+│   ├── lib/                # 库文件
+│   └── routes.tsx          # 路由配置
+```
+
+## 使用说明
+
+### 1. 文件上传
+- 访问"文件上传"页面
+- 拖拽文件到上传区域或点击选择文件
+- 支持批量上传，系统会自动处理
+
+### 2. 内容提取
+- 在"内容提取"页面配置提取规则
+- 设置关键词、目标章节等参数
+- 查看提取结果并可导出为CSV
+
+### 3. 智能判别
+- 在"智能判别"页面配置判别规则
+- 选择判别类型（合规性、分类、解释）
+- 查看AI分析结果
+
+### 4. AI助手
+- 与AI助手进行对话
+- 上传图片进行分析
+- 基于已处理文件进行问答
+
+## 演示数据
+
+系统内置了演示数据，包括：
+- 地块违规建设情况报告
+- 土壤污染检测报告
+- 水质监测报告
+
+可以在首页通过"重置演示数据"按钮重新加载演示数据。
+
+## API集成
+
+系统集成了以下AI服务：
+- 百度通用文字识别（高精度版）
+- 文心一言多模态输入大模型
+- 文心文本生成大模型
+- 图像内容理解API
+
+## 开发指南
+
+### 添加新页面
+1. 在 `src/pages/` 目录创建新的页面组件
+2. 在 `src/routes.tsx` 中添加路由配置
+3. 在Header组件中添加导航链接
+
+### 扩展数据服务
+1. 在 `src/types/index.ts` 中定义新的数据类型
+2. 在 `src/services/dataService.ts` 中添加相应的数据操作方法
+3. 在页面组件中使用数据服务
+
+### 集成新的AI服务
+1. 在 `src/utils/api.ts` 中添加新的API调用方法
+2. 在 `src/services/processingService.ts` 中集成处理逻辑
+3. 更新相关的类型定义
+
+## 许可证
+
+本项目采用 MIT 许可证。
+
+---
+
+© 2025 报告文件智能化审核应用系统

@@ -1,7 +1,11 @@
-import SamplePage from './pages/SamplePage';
+import Dashboard from './pages/Dashboard';
+import FileUpload from './pages/FileUpload';
+import ContentExtraction from './pages/ContentExtraction';
+import IntelligentAnalysis from './pages/IntelligentAnalysis';
+import AIAssistant from './pages/AIAssistant';
 import type { ReactNode } from 'react';
 
-interface RouteConfig {
+export interface RouteConfig {
   name: string;
   path: string;
   element: ReactNode;
@@ -10,9 +14,29 @@ interface RouteConfig {
 
 const routes: RouteConfig[] = [
   {
-    name: '示例页面',
+    name: '系统首页',
     path: '/',
-    element: <SamplePage />
+    element: <Dashboard />
+  },
+  {
+    name: '文件上传',
+    path: '/upload',
+    element: <FileUpload />
+  },
+  {
+    name: '内容提取',
+    path: '/extraction',
+    element: <ContentExtraction />
+  },
+  {
+    name: '智能判别',
+    path: '/analysis',
+    element: <IntelligentAnalysis />
+  },
+  {
+    name: 'AI助手',
+    path: '/assistant',
+    element: <AIAssistant />
   }
 ];
 
