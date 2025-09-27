@@ -104,27 +104,52 @@ const FileUpload: React.FC = () => {
       setIsUploading(true);
       
       try {
-        // 创建文件信息
+        // 创建文件信息并添加到数据服务
         const fileInfos: FileInfo[] = validFiles.map(file => ({
           id: generateFileId(),
           name: file.name,
           size: file.size,
           type: file.type,
           uploadTime: new Date(),
-          status: 'uploading',
-          progress: 0
+          status: 'uploading' // 先设为上传中状态
         }));
 
-        // 添加到状态
+        // 添加到数据服务
+        fileInfos.forEach(fileInfo => {
+          dataService.addFile(fileInfo);
+        });
+
+        // 更新本地状态
         setUploadedFiles(prev => [...prev, ...fileInfos]);
 
-        // 开始处理文件
-        await processingService.processBatch(validFiles);
+        // 模拟文件上传和处理过程
+        for (let i = 0; i < fileInfos.length; i++) {
+          const fileInfo = fileInfos[i];
+          
+          // 模拟上传进度
+          setTimeout(() => {
+            dataService.updateFile(fileInfo.id, { status: 'processing' });
+          }, 500 + i * 200);
+          
+          // 模拟处理完成
+          setTimeout(() => {
+            dataService.updateFile(fileInfo.id, { status: 'completed' });
+          }, 1500 + i * 300);
+        }
 
         toast({
-          title: "文件上传成功",
-          description: `成功上传 ${validFiles.length} 个文件`,
+          title: "开始上传文件",
+          description: `正在上传 ${validFiles.length} 个文件，请稍候...`,
         });
+
+        // 延迟设置上传完成状态
+        setTimeout(() => {
+          setIsUploading(false);
+          toast({
+            title: "文件上传完成",
+            description: `成功处理 ${validFiles.length} 个文件`,
+          });
+        }, 2000);
 
       } catch (error) {
         console.error('文件上传失败:', error);
@@ -133,7 +158,6 @@ const FileUpload: React.FC = () => {
           description: "文件上传过程中发生错误",
           variant: "destructive"
         });
-      } finally {
         setIsUploading(false);
       }
     }
