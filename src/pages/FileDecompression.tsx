@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { 
   Archive, 
@@ -14,7 +15,9 @@ import {
   AlertTriangle, 
   FileText,
   Clock,
-  Zap
+  Zap,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import type { FileInfo } from '@/types';
 
@@ -29,6 +32,7 @@ interface DecompressionLog {
 
 const FileDecompression: React.FC = () => {
   const [files, setFiles] = useState<FileInfo[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [logs, setLogs] = useState<DecompressionLog[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -41,6 +45,30 @@ const FileDecompression: React.FC = () => {
       setFiles(parsedFiles.filter((file: FileInfo) => file.status === 'completed'));
     }
   }, []);
+
+  // 处理文件选择
+  const handleFileSelect = (fileId: string, checked: boolean) => {
+    const newSelected = new Set(selectedFiles);
+    if (checked) {
+      newSelected.add(fileId);
+    } else {
+      newSelected.delete(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  // 全选/取消全选
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedFiles(new Set(files.map(file => file.id)));
+    } else {
+      setSelectedFiles(new Set());
+    }
+  };
+
+  // 检查是否全选
+  const isAllSelected = files.length > 0 && selectedFiles.size === files.length;
+  const isPartialSelected = selectedFiles.size > 0 && selectedFiles.size < files.length;
 
   // 模拟解压缩处理
   const simulateDecompression = async (file: FileInfo): Promise<DecompressionLog> => {
@@ -77,8 +105,10 @@ const FileDecompression: React.FC = () => {
 
   // 开始解压缩处理
   const handleStartDecompression = async () => {
-    if (files.length === 0) {
-      toast.error('没有可处理的文件');
+    const filesToProcess = files.filter(file => selectedFiles.has(file.id));
+    
+    if (filesToProcess.length === 0) {
+      toast.error('请选择要解压缩的文件');
       return;
     }
 
@@ -86,10 +116,10 @@ const FileDecompression: React.FC = () => {
     setProgress(0);
     setLogs([]);
 
-    toast.info('开始解压缩处理...');
+    toast.info(`开始解压缩处理 ${filesToProcess.length} 个文件...`);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
       
       // 添加处理中的日志
       const processingLog: DecompressionLog = {
@@ -112,11 +142,11 @@ const FileDecompression: React.FC = () => {
       ));
 
       // 更新进度
-      setProgress(((i + 1) / files.length) * 100);
+      setProgress(((i + 1) / filesToProcess.length) * 100);
     }
 
     setIsProcessing(false);
-    toast.success('解压缩处理完成');
+    toast.success(`解压缩处理完成，共处理 ${filesToProcess.length} 个文件`);
   };
 
   // 获取状态图标
@@ -187,23 +217,68 @@ const FileDecompression: React.FC = () => {
         {/* 文件列表和控制面板 */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <FileText className="h-5 w-5" />
-              <span>待处理文件</span>
-              <Badge variant="secondary">{files.length}</Badge>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>待处理文件</span>
+                <Badge variant="secondary">{files.length}</Badge>
+              </div>
+              {files.length > 0 && (
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-gray-600">
+                    已选择 {selectedFiles.size} / {files.length}
+                  </span>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {files.length > 0 ? (
               <>
+                {/* 全选控制 */}
+                <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+                  <Checkbox
+                    id="select-all"
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
+                    className="data-[state=checked]:bg-blue-600"
+                  />
+                  <label 
+                    htmlFor="select-all" 
+                    className="text-sm font-medium cursor-pointer flex items-center space-x-2"
+                  >
+                    {isAllSelected ? (
+                      <CheckSquare className="h-4 w-4 text-blue-600" />
+                    ) : (
+                      <Square className="h-4 w-4 text-gray-500" />
+                    )}
+                    <span>
+                      {isAllSelected ? '取消全选' : '全选文件'}
+                      {isPartialSelected && !isAllSelected && ` (${selectedFiles.size}/${files.length})`}
+                    </span>
+                  </label>
+                </div>
+
                 <ScrollArea className="h-64">
                   <div className="space-y-2">
                     {files.map((file) => (
                       <div
                         key={file.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
+                        className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
+                          selectedFiles.has(file.id) 
+                            ? 'border-blue-300 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
                       >
                         <div className="flex items-center space-x-3">
+                          <Checkbox
+                            id={`file-${file.id}`}
+                            checked={selectedFiles.has(file.id)}
+                            onCheckedChange={(checked) => 
+                              handleFileSelect(file.id, checked as boolean)
+                            }
+                            className="data-[state=checked]:bg-blue-600"
+                          />
                           <Archive className="h-4 w-4 text-gray-500" />
                           <div>
                             <p className="font-medium text-sm">{file.name}</p>
@@ -233,9 +308,30 @@ const FileDecompression: React.FC = () => {
                     </div>
                   )}
 
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      onClick={() => handleSelectAll(true)}
+                      variant="outline"
+                      size="sm"
+                      disabled={isProcessing || isAllSelected}
+                    >
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      全选
+                    </Button>
+                    <Button
+                      onClick={() => handleSelectAll(false)}
+                      variant="outline"
+                      size="sm"
+                      disabled={isProcessing || selectedFiles.size === 0}
+                    >
+                      <Square className="mr-2 h-4 w-4" />
+                      取消全选
+                    </Button>
+                  </div>
+
                   <Button
                     onClick={handleStartDecompression}
-                    disabled={isProcessing}
+                    disabled={isProcessing || selectedFiles.size === 0}
                     className="w-full"
                     size="lg"
                   >
@@ -247,7 +343,7 @@ const FileDecompression: React.FC = () => {
                     ) : (
                       <>
                         <Play className="mr-2 h-4 w-4" />
-                        开始解压缩
+                        开始解压缩 ({selectedFiles.size})
                       </>
                     )}
                   </Button>
