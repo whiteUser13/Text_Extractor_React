@@ -370,60 +370,26 @@ const IntelligentAnalysis: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {filteredResults.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {filteredResults.map((result) => {
                       const file = files.find(f => f.id === result.fileId);
-                      const rule = rules.find(r => r.id === result.ruleId);
                       
                       return (
                         <div key={result.id} className={`border rounded-lg p-4 ${getResultColor(result.result)}`}>
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                {getResultIcon(result.result)}
-                                <span className="font-medium text-lg">
-                                  {getResultLabel(result.result)}
-                                </span>
-                                <Badge variant="outline">{file?.name || '未知文件'}</Badge>
-                                <Badge variant="secondary">{rule?.name || '未知规则'}</Badge>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
-                                {result.classification && (
-                                  <div>
-                                    <span className="font-medium">分类：</span>
-                                    <span>{result.classification}</span>
-                                  </div>
-                                )}
-                                {result.score !== undefined && (
-                                  <div>
-                                    <span className="font-medium">评分：</span>
-                                    <span>{result.score}</span>
-                                  </div>
-                                )}
-                                <div>
-                                  <span className="font-medium">置信度：</span>
-                                  <span>{(result.confidence * 100).toFixed(1)}%</span>
-                                </div>
-                                <div>
-                                  <span className="font-medium">判别时间：</span>
-                                  <span>{new Date(result.judgedAt).toLocaleString()}</span>
-                                </div>
-                              </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {getResultIcon(result.result)}
+                              <span className="font-medium">
+                                {file?.name || '未知文件'}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                处理{result.result === 'pass' ? '成功' : result.result === 'fail' ? '失败' : '完成'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {new Date(result.judgedAt).toLocaleString()}
                             </div>
                           </div>
-                          
-                          <div className="bg-white/50 rounded-lg p-3">
-                            <h4 className="font-medium mb-2">详细说明：</h4>
-                            <p className="text-sm whitespace-pre-wrap">{result.details}</p>
-                          </div>
-
-                          {result.interpretation && (
-                            <div className="mt-3 bg-white/50 rounded-lg p-3">
-                              <h4 className="font-medium mb-2">解释说明：</h4>
-                              <p className="text-sm whitespace-pre-wrap">{result.interpretation}</p>
-                            </div>
-                          )}
                         </div>
                       );
                     })}

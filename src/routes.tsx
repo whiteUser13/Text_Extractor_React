@@ -4,7 +4,6 @@ import FileDecompression from './pages/FileDecompression';
 import ContentExtraction from './pages/ContentExtraction';
 import IntelligentAnalysis from './pages/IntelligentAnalysis';
 import ResultsOutput from './pages/ResultsOutput';
-import AIAssistant from './pages/AIAssistant';
 import type { ReactNode } from 'react';
 
 export interface RouteConfig {
@@ -44,11 +43,6 @@ const routes: RouteConfig[] = [
     name: '成果表格输出',
     path: '/results',
     element: <ResultsOutput />
-  },
-  {
-    name: 'AI助手',
-    path: '/assistant',
-    element: <AIAssistant />
   }
 ];
 

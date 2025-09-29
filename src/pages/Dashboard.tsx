@@ -240,12 +240,6 @@ const Dashboard: React.FC = () => {
                         <span className="text-sm font-medium">成果表格</span>
                       </button>
                     </Link>
-                    <Link to="/assistant">
-                      <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors w-full">
-                        <TrendingUp className="h-8 w-8 text-orange-600 mb-2" />
-                        <span className="text-sm font-medium">AI助手</span>
-                      </button>
-                    </Link>
                   </div>
                   
                   {/* 演示数据控制 */}
