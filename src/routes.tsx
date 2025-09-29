@@ -1,7 +1,9 @@
 import Dashboard from './pages/Dashboard';
 import FileUpload from './pages/FileUpload';
+import FileDecompression from './pages/FileDecompression';
 import ContentExtraction from './pages/ContentExtraction';
 import IntelligentAnalysis from './pages/IntelligentAnalysis';
+import ResultsOutput from './pages/ResultsOutput';
 import AIAssistant from './pages/AIAssistant';
 import type { ReactNode } from 'react';
 
@@ -24,6 +26,11 @@ const routes: RouteConfig[] = [
     element: <FileUpload />
   },
   {
+    name: '解压缩处理',
+    path: '/decompression',
+    element: <FileDecompression />
+  },
+  {
     name: '内容提取',
     path: '/extraction',
     element: <ContentExtraction />
@@ -32,6 +39,11 @@ const routes: RouteConfig[] = [
     name: '智能判别',
     path: '/analysis',
     element: <IntelligentAnalysis />
+  },
+  {
+    name: '成果表格输出',
+    path: '/results',
+    element: <ResultsOutput />
   },
   {
     name: 'AI助手',

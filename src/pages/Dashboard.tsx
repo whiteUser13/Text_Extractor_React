@@ -209,23 +209,35 @@ const Dashboard: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <Link to="/upload">
                       <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors w-full">
                         <Upload className="h-8 w-8 text-blue-600 mb-2" />
                         <span className="text-sm font-medium">上传文件</span>
                       </button>
                     </Link>
+                    <Link to="/decompression">
+                      <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors w-full">
+                        <FileText className="h-8 w-8 text-indigo-600 mb-2" />
+                        <span className="text-sm font-medium">解压缩处理</span>
+                      </button>
+                    </Link>
                     <Link to="/extraction">
                       <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors w-full">
                         <Search className="h-8 w-8 text-green-600 mb-2" />
-                        <span className="text-sm font-medium">内容检索</span>
+                        <span className="text-sm font-medium">内容提取</span>
                       </button>
                     </Link>
                     <Link to="/analysis">
                       <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors w-full">
                         <Settings className="h-8 w-8 text-purple-600 mb-2" />
                         <span className="text-sm font-medium">智能判别</span>
+                      </button>
+                    </Link>
+                    <Link to="/results">
+                      <button className="flex flex-col items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors w-full">
+                        <BarChart3 className="h-8 w-8 text-emerald-600 mb-2" />
+                        <span className="text-sm font-medium">成果表格</span>
                       </button>
                     </Link>
                     <Link to="/assistant">
