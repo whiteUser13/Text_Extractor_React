@@ -1,208 +1,218 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Upload, 
-  FileText, 
-  Image, 
-  File, 
-  X, 
-  CheckCircle, 
+import React, { useState, useCallback, useRef } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Upload,
+  FileText,
+  Image,
+  File,
+  X,
+  CheckCircle,
   AlertCircle,
   Download,
   Trash2,
   Eye,
-  Clock
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { dataService } from '@/services/dataService';
-import { processingService } from '@/services/processingService';
-import { 
-  getSupportedFileTypes, 
-  formatFileSize, 
+  Clock,
+} from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { dataService } from "@/services/dataService"
+import { processingService } from "@/services/processingService"
+import {
+  getSupportedFileTypes,
+  formatFileSize,
   generateFileId,
   isImageFile,
   isPdfFile,
-  isWordFile
-} from '@/utils/fileUtils';
-import type { FileInfo, DocumentParseResult } from '@/types';
-import FilePreview from '@/components/FilePreview';
+  isWordFile,
+} from "@/utils/fileUtils"
+import type { FileInfo, DocumentParseResult } from "@/types"
+import FilePreview from "@/components/FilePreview"
 
 const FileUpload: React.FC = () => {
-  const [dragActive, setDragActive] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [previewFile, setPreviewFile] = useState<FileInfo | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 获取文件图标
   const getFileIcon = (file: File | FileInfo) => {
-    const type = file.type;
-    
+    const type = file.type
+
     if (isImageFile({ type } as File)) {
-      return <Image className="h-8 w-8 text-blue-500" />;
+      return <Image className="h-8 w-8 text-blue-500" />
     } else if (isPdfFile({ type } as File)) {
-      return <FileText className="h-8 w-8 text-red-500" />;
+      return <FileText className="h-8 w-8 text-red-500" />
     } else if (isWordFile({ type } as File)) {
-      return <FileText className="h-8 w-8 text-blue-600" />;
+      return <FileText className="h-8 w-8 text-blue-600" />
     }
-    return <File className="h-8 w-8 text-gray-500" />;
-  };
+    return <File className="h-8 w-8 text-gray-500" />
+  }
 
   // 获取文件类型标签
   const getFileTypeLabel = (type: string): string => {
-    if (type.includes('pdf')) return 'PDF';
-    if (type.includes('word') || type.includes('document')) return 'Word';
-    if (type.includes('image')) return '图片';
-    if (type.includes('zip')) return '压缩包';
-    return '其他';
-  };
+    if (type.includes("pdf")) return "PDF"
+    if (type.includes("word") || type.includes("document")) return "Word"
+    if (type.includes("image")) return "图片"
+    if (type.includes("zip")) return "压缩包"
+    return "其他"
+  }
 
   // 验证文件
   const validateFile = (file: File): string | null => {
-    const supportedTypes = getSupportedFileTypes();
-    
+    const supportedTypes = getSupportedFileTypes()
+
     if (!supportedTypes.includes(file.type)) {
-      return `不支持的文件类型: ${file.type}`;
+      return `不支持的文件类型: ${file.type}`
     }
-    
+
     // 移除文件大小限制，允许上传任意大小的文件
     // if (!validateFileSize(file)) {
     //   return '文件大小超过10MB限制';
     // }
-    
-    return null;
-  };
+
+    return null
+  }
 
   // 生成模拟解析结果
   const generateMockParseResult = (file: FileInfo): DocumentParseResult => {
-    const isImage = isImageFile({ type: file.type } as File);
-    const isPdf = isPdfFile({ type: file.type } as File);
-    const isWord = isWordFile({ type: file.type } as File);
-    
+    const isImage = isImageFile({ type: file.type } as File)
+    const isPdf = isPdfFile({ type: file.type } as File)
+    const isWord = isWordFile({ type: file.type } as File)
+
     // 根据文件类型生成不同的模拟内容
     let mockContent = {
-      text: '',
+      text: "",
       tables: [] as any[],
       images: [] as any[],
       structure: {
-        title: '',
+        title: "",
         sections: [] as any[],
-        pageCount: 1
-      }
-    };
+        pageCount: 1,
+      },
+    }
 
     if (isImage) {
       mockContent = {
-        text: '通过OCR识别提取的文本内容：\n\n这是一个示例图片文件，包含了一些文本信息。OCR技术已成功识别出图片中的文字内容，包括标题、正文和其他相关信息。',
+        text: "通过OCR识别提取的文本内容：\n\n这是一个示例图片文件，包含了一些文本信息。OCR技术已成功识别出图片中的文字内容，包括标题、正文和其他相关信息。",
         tables: [],
-        images: [{
-          title: '原始图片',
-          description: '上传的图片文件',
-          page: 1
-        }],
+        images: [
+          {
+            title: "原始图片",
+            description: "上传的图片文件",
+            page: 1,
+          },
+        ],
         structure: {
           title: file.name,
-          sections: [{
-            title: 'OCR识别结果',
-            level: 1,
-            page: 1,
-            content: '图片中识别出的文本内容'
-          }],
-          pageCount: 1
-        }
-      };
+          sections: [
+            {
+              title: "OCR识别结果",
+              level: 1,
+              page: 1,
+              content: "图片中识别出的文本内容",
+            },
+          ],
+          pageCount: 1,
+        },
+      }
     } else if (isPdf) {
       mockContent = {
         text: `${file.name} - PDF文档解析结果\n\n第一章 概述\n本文档是一个示例PDF文件，包含了多个章节和丰富的内容结构。\n\n第二章 详细内容\n这里是文档的详细内容部分，包含了大量的文本信息、数据表格和图表。\n\n第三章 数据分析\n本章节包含了详细的数据分析结果和相关图表。\n\n第四章 结论\n基于前面的分析，我们得出了以下结论...`,
         tables: [
           {
-            title: '数据统计表',
-            headers: ['项目', '数值', '单位', '备注'],
+            title: "数据统计表",
+            headers: ["项目", "数值", "单位", "备注"],
             rows: [
-              ['总数量', '1,234', '个', '统计截止到当前'],
-              ['平均值', '56.78', '%', '计算方法：总和/数量'],
-              ['最大值', '99.9', '%', '历史最高记录'],
-              ['最小值', '12.3', '%', '历史最低记录']
+              ["总数量", "1,234", "个", "统计截止到当前"],
+              ["平均值", "56.78", "%", "计算方法：总和/数量"],
+              ["最大值", "99.9", "%", "历史最高记录"],
+              ["最小值", "12.3", "%", "历史最低记录"],
             ],
-            page: 2
+            page: 2,
           },
           {
-            title: '分类汇总表',
-            headers: ['类别', '数量', '占比'],
+            title: "分类汇总表",
+            headers: ["类别", "数量", "占比"],
             rows: [
-              ['类别A', '456', '37%'],
-              ['类别B', '389', '31%'],
-              ['类别C', '389', '32%']
+              ["类别A", "456", "37%"],
+              ["类别B", "389", "31%"],
+              ["类别C", "389", "32%"],
             ],
-            page: 3
-          }
+            page: 3,
+          },
         ],
         images: [
           {
-            title: '图1 趋势分析图',
-            description: '显示了过去12个月的数据变化趋势',
-            page: 2
+            title: "图1 趋势分析图",
+            description: "显示了过去12个月的数据变化趋势",
+            page: 2,
           },
           {
-            title: '图2 分布图',
-            description: '各类别数据的分布情况',
-            page: 3
-          }
+            title: "图2 分布图",
+            description: "各类别数据的分布情况",
+            page: 3,
+          },
         ],
         structure: {
-          title: file.name.replace(/\.[^/.]+$/, ''),
+          title: file.name.replace(/\.[^/.]+$/, ""),
           sections: [
-            { title: '概述', level: 1, page: 1, content: '文档概述内容' },
-            { title: '详细内容', level: 1, page: 1, content: '详细内容描述' },
-            { title: '数据分析', level: 1, page: 2, content: '数据分析结果' },
-            { title: '统计图表', level: 2, page: 2, content: '各类统计图表' },
-            { title: '趋势分析', level: 2, page: 2, content: '数据趋势分析' },
-            { title: '结论', level: 1, page: 3, content: '分析结论' }
+            { title: "概述", level: 1, page: 1, content: "文档概述内容" },
+            { title: "详细内容", level: 1, page: 1, content: "详细内容描述" },
+            { title: "数据分析", level: 1, page: 2, content: "数据分析结果" },
+            { title: "统计图表", level: 2, page: 2, content: "各类统计图表" },
+            { title: "趋势分析", level: 2, page: 2, content: "数据趋势分析" },
+            { title: "结论", level: 1, page: 3, content: "分析结论" },
           ],
-          pageCount: 3
-        }
-      };
+          pageCount: 3,
+        },
+      }
     } else if (isWord) {
       mockContent = {
         text: `${file.name} - Word文档解析结果\n\n标题：报告文档\n\n1. 引言\n本报告旨在分析当前的业务状况并提出改进建议。\n\n2. 现状分析\n通过对现有数据的分析，我们发现了以下几个关键问题：\n- 效率有待提升\n- 成本控制需要加强\n- 质量管理需要完善\n\n3. 改进建议\n基于以上分析，我们提出以下改进建议：\n- 优化工作流程\n- 引入新技术\n- 加强培训\n\n4. 实施计划\n改进措施的具体实施计划如下...`,
         tables: [
           {
-            title: '实施计划表',
-            headers: ['阶段', '任务', '负责人', '完成时间'],
+            title: "实施计划表",
+            headers: ["阶段", "任务", "负责人", "完成时间"],
             rows: [
-              ['第一阶段', '需求分析', '张三', '2024-01-15'],
-              ['第二阶段', '方案设计', '李四', '2024-02-15'],
-              ['第三阶段', '系统开发', '王五', '2024-04-15'],
-              ['第四阶段', '测试验收', '赵六', '2024-05-15']
+              ["第一阶段", "需求分析", "张三", "2024-01-15"],
+              ["第二阶段", "方案设计", "李四", "2024-02-15"],
+              ["第三阶段", "系统开发", "王五", "2024-04-15"],
+              ["第四阶段", "测试验收", "赵六", "2024-05-15"],
             ],
-            page: 2
-          }
+            page: 2,
+          },
         ],
         images: [
           {
-            title: '流程图',
-            description: '业务流程优化示意图',
-            page: 1
-          }
+            title: "流程图",
+            description: "业务流程优化示意图",
+            page: 1,
+          },
         ],
         structure: {
-          title: file.name.replace(/\.[^/.]+$/, ''),
+          title: file.name.replace(/\.[^/.]+$/, ""),
           sections: [
-            { title: '引言', level: 1, page: 1, content: '报告引言部分' },
-            { title: '现状分析', level: 1, page: 1, content: '当前状况分析' },
-            { title: '改进建议', level: 1, page: 2, content: '具体改进建议' },
-            { title: '实施计划', level: 1, page: 2, content: '详细实施计划' }
+            { title: "引言", level: 1, page: 1, content: "报告引言部分" },
+            { title: "现状分析", level: 1, page: 1, content: "当前状况分析" },
+            { title: "改进建议", level: 1, page: 2, content: "具体改进建议" },
+            { title: "实施计划", level: 1, page: 2, content: "详细实施计划" },
           ],
-          pageCount: 2
-        }
-      };
+          pageCount: 2,
+        },
+      }
     } else {
       // 其他文件类型的默认内容
       mockContent = {
@@ -211,205 +221,217 @@ const FileUpload: React.FC = () => {
         images: [],
         structure: {
           title: file.name,
-          sections: [{
-            title: '文件内容',
-            level: 1,
-            page: 1,
-            content: '解析出的文件内容'
-          }],
-          pageCount: 1
-        }
-      };
+          sections: [
+            {
+              title: "文件内容",
+              level: 1,
+              page: 1,
+              content: "解析出的文件内容",
+            },
+          ],
+          pageCount: 1,
+        },
+      }
     }
 
     return {
       id: generateFileId(),
       fileId: file.id,
       content: mockContent,
-      parsedAt: new Date()
-    };
-  };
+      parsedAt: new Date(),
+    }
+  }
 
   // 处理预览
   const handlePreview = (file: FileInfo) => {
-    setPreviewFile(file);
-    setPreviewOpen(true);
-  };
+    setPreviewFile(file)
+    setPreviewOpen(true)
+  }
 
   // 处理文件选择
-  const handleFiles = useCallback(async (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    const validFiles: File[] = [];
-    const errors: string[] = [];
+  const handleFiles = useCallback(
+    async (files: FileList | File[]) => {
+      const fileArray = Array.from(files)
+      const validFiles: File[] = []
+      const errors: string[] = []
 
-    // 验证文件
-    for (const file of fileArray) {
-      const error = validateFile(file);
-      if (error) {
-        errors.push(`${file.name}: ${error}`);
-      } else {
-        validFiles.push(file);
-      }
-    }
-
-    // 显示错误信息
-    if (errors.length > 0) {
-      toast({
-        title: "文件验证失败",
-        description: errors.join('\n'),
-        variant: "destructive"
-      });
-    }
-
-    // 处理有效文件
-    if (validFiles.length > 0) {
-      setIsUploading(true);
-      
-      try {
-        // 创建文件信息并添加到数据服务
-        const fileInfos: FileInfo[] = validFiles.map(file => ({
-          id: generateFileId(),
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          uploadTime: new Date(),
-          status: 'uploading' // 先设为上传中状态
-        }));
-
-        // 添加到数据服务
-        fileInfos.forEach(fileInfo => {
-          dataService.addFile(fileInfo);
-        });
-
-        // 更新本地状态
-        setUploadedFiles(prev => [...prev, ...fileInfos]);
-
-        // 模拟文件上传和处理过程
-        for (let i = 0; i < fileInfos.length; i++) {
-          const fileInfo = fileInfos[i];
-          
-          // 模拟上传进度
-          setTimeout(() => {
-            dataService.updateFile(fileInfo.id, { status: 'processing' });
-          }, 500 + i * 200);
-          
-          // 模拟处理完成
-          setTimeout(() => {
-            // 生成解析结果
-            const parseResult = generateMockParseResult(fileInfo);
-            // 更新文件状态并添加解析结果
-            dataService.updateFile(fileInfo.id, { 
-              status: 'completed',
-              parseResult: parseResult
-            });
-            
-            // 更新本地状态
-            setUploadedFiles(prev => 
-              prev.map(f => 
-                f.id === fileInfo.id 
-                  ? { ...f, status: 'completed', parseResult: parseResult }
-                  : f
-              )
-            );
-          }, 1500 + i * 300);
+      // 验证文件
+      for (const file of fileArray) {
+        const error = validateFile(file)
+        if (error) {
+          errors.push(`${file.name}: ${error}`)
+        } else {
+          validFiles.push(file)
         }
-
-        toast({
-          title: "开始上传文件",
-          description: `正在上传 ${validFiles.length} 个文件，请稍候...`,
-        });
-
-        // 延迟设置上传完成状态
-        setTimeout(() => {
-          setIsUploading(false);
-          toast({
-            title: "文件上传完成",
-            description: `成功处理 ${validFiles.length} 个文件`,
-          });
-        }, 2000);
-
-      } catch (error) {
-        console.error('文件上传失败:', error);
-        toast({
-          title: "上传失败",
-          description: "文件上传过程中发生错误",
-          variant: "destructive"
-        });
-        setIsUploading(false);
       }
-    }
-  }, [toast]);
+
+      // 显示错误信息
+      if (errors.length > 0) {
+        toast({
+          title: "文件验证失败",
+          description: errors.join("\n"),
+          variant: "destructive",
+        })
+      }
+
+      // 处理有效文件
+      if (validFiles.length > 0) {
+        setIsUploading(true)
+
+        try {
+          // 创建文件信息并添加到数据服务
+          const fileInfos: FileInfo[] = validFiles.map((file) => ({
+            id: generateFileId(),
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            uploadTime: new Date(),
+            status: "uploading", // 先设为上传中状态
+          }))
+
+          // 添加到数据服务
+          fileInfos.forEach((fileInfo) => {
+            dataService.addFile(fileInfo)
+          })
+
+          // 更新本地状态
+          setUploadedFiles((prev) => [...prev, ...fileInfos])
+
+          // 模拟文件上传和处理过程
+          for (let i = 0; i < fileInfos.length; i++) {
+            const fileInfo = fileInfos[i]
+
+            // 模拟上传进度
+            setTimeout(() => {
+              dataService.updateFile(fileInfo.id, { status: "processing" })
+            }, 500 + i * 200)
+
+            // 模拟处理完成
+            setTimeout(() => {
+              // 生成解析结果
+              const parseResult = generateMockParseResult(fileInfo)
+              // 更新文件状态并添加解析结果
+              dataService.updateFile(fileInfo.id, {
+                status: "completed",
+                parseResult: parseResult,
+              })
+
+              // 更新本地状态
+              setUploadedFiles((prev) =>
+                prev.map((f) =>
+                  f.id === fileInfo.id
+                    ? { ...f, status: "completed", parseResult: parseResult }
+                    : f
+                )
+              )
+            }, 1500 + i * 300)
+          }
+
+          toast({
+            title: "开始上传文件",
+            description: `正在上传 ${validFiles.length} 个文件，请稍候...`,
+          })
+
+          // 延迟设置上传完成状态
+          setTimeout(() => {
+            setIsUploading(false)
+            toast({
+              title: "文件上传完成",
+              description: `成功处理 ${validFiles.length} 个文件`,
+            })
+          }, 2000)
+        } catch (error) {
+          console.error("文件上传失败:", error)
+          toast({
+            title: "上传失败",
+            description: "文件上传过程中发生错误",
+            variant: "destructive",
+          })
+          setIsUploading(false)
+        }
+      }
+    },
+    [toast]
+  )
 
   // 拖拽处理
   const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault()
+    e.stopPropagation()
     if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
+      setDragActive(true)
     } else if (e.type === "dragleave") {
-      setDragActive(false);
+      setDragActive(false)
     }
-  }, []);
+  }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFiles(e.dataTransfer.files);
-    }
-  }, [handleFiles]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setDragActive(false)
+
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleFiles(e.dataTransfer.files)
+      }
+    },
+    [handleFiles]
+  )
 
   // 文件输入处理
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      handleFiles(e.target.files);
+      handleFiles(e.target.files)
     }
-  };
+  }
 
   // 删除文件
   const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
-    dataService.deleteFile(fileId);
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
+    dataService.deleteFile(fileId)
     toast({
       title: "文件已删除",
-      description: "文件已从列表中移除"
-    });
-  };
+      description: "文件已从列表中移除",
+    })
+  }
 
   // 获取所有文件
   React.useEffect(() => {
     const updateFiles = () => {
-      const allFiles = dataService.getAllFiles();
-      setUploadedFiles(allFiles);
-    };
+      const allFiles = dataService.getAllFiles()
+      setUploadedFiles(allFiles)
+    }
 
-    updateFiles();
-    const interval = setInterval(updateFiles, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    updateFiles()
+    const interval = setInterval(updateFiles, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'completed': return 'bg-green-500';
-      case 'processing': return 'bg-blue-500';
-      case 'error': return 'bg-red-500';
-      case 'uploading': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
+      case "completed":
+        return "bg-green-500"
+      case "processing":
+        return "bg-blue-500"
+      case "error":
+        return "bg-red-500"
+      case "uploading":
+        return "bg-yellow-500"
+      default:
+        return "bg-gray-500"
     }
-  };
+  }
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      uploading: '上传中',
-      uploaded: '已上传',
-      processing: '处理中',
-      completed: '已完成',
-      error: '错误'
-    };
-    return labels[status] || status;
-  };
+      uploading: "上传中",
+      uploaded: "已上传",
+      processing: "处理中",
+      completed: "已完成",
+      error: "错误",
+    }
+    return labels[status] || status
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -445,16 +467,15 @@ const FileUpload: React.FC = () => {
               <CardContent>
                 <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-                    dragActive 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-300 hover:border-gray-400'
+                    dragActive
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300 hover:border-gray-400"
                   }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
+                  onClick={() => fileInputRef.current?.click()}>
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-lg font-medium text-gray-900 mb-2">
                     拖拽文件到此处上传
@@ -470,13 +491,12 @@ const FileUpload: React.FC = () => {
                     className="hidden"
                     ref={fileInputRef}
                   />
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="cursor-pointer"
                     disabled={isUploading}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {isUploading ? '上传中...' : '选择文件'}
+                    onClick={() => fileInputRef.current?.click()}>
+                    {isUploading ? "上传中..." : "选择文件"}
                   </Button>
                 </div>
 
@@ -489,7 +509,9 @@ const FileUpload: React.FC = () => {
                     <Badge variant="outline">图片 (jpg/png/bmp)</Badge>
                     <Badge variant="outline">压缩包 (zip)</Badge>
                   </div>
-                  <p className="text-xs text-green-600 mt-2">✓ 无文件大小限制</p>
+                  <p className="text-xs text-green-600 mt-2">
+                    ✓ 无文件大小限制
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -519,14 +541,13 @@ const FileUpload: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setUploadedFiles([]);
-                        dataService.clearAll();
+                        setUploadedFiles([])
+                        dataService.clearAll()
                         toast({
                           title: "已清空",
-                          description: "所有文件已清空"
-                        });
-                      }}
-                    >
+                          description: "所有文件已清空",
+                        })
+                      }}>
                       <Trash2 className="h-4 w-4 mr-2" />
                       清空所有
                     </Button>
@@ -537,71 +558,81 @@ const FileUpload: React.FC = () => {
                 {uploadedFiles.length > 0 ? (
                   <div className="space-y-4">
                     {uploadedFiles.map((file) => {
-                      const processingStatus = dataService.getProcessingStatus(file.id);
-                      
+                      const processingStatus = dataService.getProcessingStatus(
+                        file.id
+                      )
+
                       return (
                         <div key={file.id} className="border rounded-lg p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3 flex-1">
                               {getFileIcon(file)}
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{file.name}</p>
+                                <p className="font-medium truncate">
+                                  {file.name}
+                                </p>
                                 <div className="flex items-center gap-4 text-sm text-gray-500">
                                   <span>{formatFileSize(file.size)}</span>
                                   <Badge variant="outline">
                                     {getFileTypeLabel(file.type)}
                                   </Badge>
-                                  <span>{new Date(file.uploadTime).toLocaleString()}</span>
+                                  <span>
+                                    {new Date(file.uploadTime).toLocaleString()}
+                                  </span>
                                 </div>
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center gap-2 ml-4">
                               <div className="flex items-center gap-2">
-                                <div 
-                                  className={`w-3 h-3 rounded-full ${getStatusColor(file.status)}`}
+                                <div
+                                  className={`w-3 h-3 rounded-full ${getStatusColor(
+                                    file.status
+                                  )}`}
                                 />
                                 <span className="text-sm font-medium">
                                   {getStatusLabel(file.status)}
                                 </span>
                               </div>
-                              
+
                               {/* 预览按钮 - 只有在文件处理完成时才显示 */}
-                              {file.status === 'completed' && file.parseResult && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handlePreview(file)}
-                                  title="预览解析结果"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              )}
-                              
+                              {file.status === "completed" &&
+                                file.parseResult && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePreview(file)}
+                                    title="预览解析结果">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                )}
+
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => removeFile(file.id)}
-                                title="删除文件"
-                              >
+                                title="删除文件">
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
 
                           {/* 处理进度 */}
-                          {file.status === 'processing' && processingStatus && (
+                          {file.status === "processing" && processingStatus && (
                             <div className="mt-3 space-y-2">
                               <div className="flex items-center justify-between text-sm">
                                 <span>{processingStatus.message}</span>
                                 <span>{processingStatus.progress}%</span>
                               </div>
-                              <Progress value={processingStatus.progress} className="w-full" />
+                              <Progress
+                                value={processingStatus.progress}
+                                className="w-full"
+                              />
                             </div>
                           )}
 
                           {/* 错误信息 */}
-                          {file.status === 'error' && file.errorMessage && (
+                          {file.status === "error" && file.errorMessage && (
                             <div className="mt-3">
                               <Alert variant="destructive">
                                 <AlertCircle className="h-4 w-4" />
@@ -613,7 +644,7 @@ const FileUpload: React.FC = () => {
                           )}
 
                           {/* 完成状态 */}
-                          {file.status === 'completed' && (
+                          {file.status === "completed" && (
                             <div className="mt-3">
                               <Alert>
                                 <CheckCircle className="h-4 w-4" />
@@ -624,7 +655,7 @@ const FileUpload: React.FC = () => {
                             </div>
                           )}
                         </div>
-                      );
+                      )
                     })}
                   </div>
                 ) : (
@@ -643,7 +674,7 @@ const FileUpload: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-      
+
       {/* 文件预览对话框 */}
       {previewFile && (
         <FilePreview
@@ -653,7 +684,7 @@ const FileUpload: React.FC = () => {
         />
       )}
     </div>
-  );
-};
+  )
+}
 
-export default FileUpload;
+export default FileUpload
