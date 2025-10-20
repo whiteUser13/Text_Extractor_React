@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react"
+import React, { useState, useCallback, useRef, useEffect } from "react"
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ import {
 } from "@/utils/fileUtils"
 import type { FileInfo, DocumentParseResult } from "@/types"
 import FilePreview from "@/components/FilePreview"
+import axios from "axios"
 
 const FileUpload: React.FC = () => {
   const [dragActive, setDragActive] = useState(false)
@@ -77,12 +78,10 @@ const FileUpload: React.FC = () => {
     if (!supportedTypes.includes(file.type)) {
       return `不支持的文件类型: ${file.type}`
     }
-
     // 移除文件大小限制，允许上传任意大小的文件
     // if (!validateFileSize(file)) {
     //   return '文件大小超过10MB限制';
     // }
-
     return null
   }
 
@@ -278,76 +277,90 @@ const FileUpload: React.FC = () => {
       if (validFiles.length > 0) {
         setIsUploading(true)
 
-        try {
-          // 创建文件信息并添加到数据服务
-          const fileInfos: FileInfo[] = validFiles.map((file) => ({
-            id: generateFileId(),
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            uploadTime: new Date(),
-            status: "uploading", // 先设为上传中状态
-          }))
+        // 创建文件信息并添加到数据服务
+        const fileInfos: FileInfo[] = validFiles.map((file) => ({
+          id: generateFileId(),
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          uploadTime: new Date(),
+          status: "uploading", // 先设为上传中状态
+        }))
 
-          // 添加到数据服务
-          fileInfos.forEach((fileInfo) => {
-            dataService.addFile(fileInfo)
-          })
+        // 添加到数据服务
+        fileInfos.forEach((fileInfo) => {
+          dataService.addFile(fileInfo)
+        })
 
-          // 更新本地状态
-          setUploadedFiles((prev) => [...prev, ...fileInfos])
+        // 更新本地状态
+        setUploadedFiles((prev) => [...prev, ...fileInfos])
 
-          // 模拟文件上传和处理过程
-          for (let i = 0; i < fileInfos.length; i++) {
-            const fileInfo = fileInfos[i]
-
-            // 模拟上传进度
-            setTimeout(() => {
-              dataService.updateFile(fileInfo.id, { status: "processing" })
-            }, 500 + i * 200)
-
-            // 模拟处理完成
-            setTimeout(() => {
-              // 生成解析结果
-              const parseResult = generateMockParseResult(fileInfo)
-              // 更新文件状态并添加解析结果
-              dataService.updateFile(fileInfo.id, {
-                status: "completed",
-                parseResult: parseResult,
-              })
-
-              // 更新本地状态
-              setUploadedFiles((prev) =>
-                prev.map((f) =>
-                  f.id === fileInfo.id
-                    ? { ...f, status: "completed", parseResult: parseResult }
-                    : f
-                )
-              )
-            }, 1500 + i * 300)
-          }
-
+        // 文件上传和处理过程
+        for (let i = 0; i < fileInfos.length; i++) {
           toast({
             title: "开始上传文件",
-            description: `正在上传 ${validFiles.length} 个文件，请稍候...`,
+            description: `正在上传 ${i}/${validFiles.length} 文件，请稍候...`,
           })
+          const file = validFiles[i]
+          const formData = new FormData()
+          formData.append("file", file)
 
-          // 延迟设置上传完成状态
-          setTimeout(() => {
-            setIsUploading(false)
-            toast({
-              title: "文件上传完成",
-              description: `成功处理 ${validFiles.length} 个文件`,
+          const fileInfo = fileInfos[i]
+
+          // 真实上传
+          try {
+            // setUploading(true)
+            // setResult(null)
+            dataService.updateFile(fileInfo.id, { status: "processing" })
+            const res = await axios.post(
+              "http://localhost:8000/upload",
+              formData,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data",
+                },
+                onUploadProgress: (progressEvent) => {
+                  if (progressEvent.total) {
+                    const percent = Math.round(
+                      (progressEvent.loaded * 100) / progressEvent.total
+                    )
+                    console.log(percent)
+
+                    // setResult(`正在上传：${percent}%`)
+                  }
+                },
+              }
+            )
+
+            // 生成解析结果
+            const parseResult = generateMockParseResult(fileInfo)
+            // 更新文件状态并添加解析结果
+            dataService.updateFile(fileInfo.id, {
+              status: "judged",
+              parseResult: parseResult,
             })
-          }, 2000)
-        } catch (error) {
-          console.error("文件上传失败:", error)
-          toast({
-            title: "上传失败",
-            description: "文件上传过程中发生错误",
-            variant: "destructive",
-          })
+
+            // 更新本地状态
+            setUploadedFiles((prev) =>
+              prev.map((f) =>
+                f.id === fileInfo.id
+                  ? { ...f, status: "judged", parseResult: parseResult }
+                  : f
+              )
+            )
+          } catch (err: any) {
+            toast({
+              title: "上传失败",
+              description: "文件上传过程中发生错误",
+              variant: "destructive",
+            })
+            setIsUploading(false)
+          }
           setIsUploading(false)
+          toast({
+            title: "文件上传完成",
+            description: `成功处理 ${validFiles.length} 个文件`,
+          })
         }
       }
     },
@@ -474,8 +487,7 @@ const FileUpload: React.FC = () => {
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}>
+                  onDrop={handleDrop}>
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-lg font-medium text-gray-900 mb-2">
                     拖拽文件到此处上传
@@ -596,16 +608,15 @@ const FileUpload: React.FC = () => {
                               </div>
 
                               {/* 预览按钮 - 只有在文件处理完成时才显示 */}
-                              {file.status === "completed" &&
-                                file.parseResult && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handlePreview(file)}
-                                    title="预览解析结果">
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                )}
+                              {file.status === "judged" && file.parseResult && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handlePreview(file)}
+                                  title="预览解析结果">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
 
                               <Button
                                 variant="ghost"
@@ -644,7 +655,7 @@ const FileUpload: React.FC = () => {
                           )}
 
                           {/* 完成状态 */}
-                          {file.status === "completed" && (
+                          {file.status === "judged" && (
                             <div className="mt-3">
                               <Alert>
                                 <CheckCircle className="h-4 w-4" />

@@ -1,223 +1,275 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Brain, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Download, 
+import React, { useState, useEffect } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import FolderCard from "@/components/ui/foldercard"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Brain,
+  Plus,
+  Edit,
+  Trash2,
+  Download,
   CheckCircle,
   AlertTriangle,
   XCircle,
   Filter,
   Settings,
   BarChart3,
-  TrendingUp
-} from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { useToast } from '@/hooks/use-toast';
-import { dataService } from '@/services/dataService';
-import type { JudgmentRule, JudgmentResult, FileInfo } from '@/types';
+  TrendingUp,
+} from "lucide-react"
+import { useForm } from "react-hook-form"
+import { useToast } from "@/hooks/use-toast"
+import { dataService } from "@/services/dataService"
+import type { JudgmentRule, JudgmentResult, FileInfo } from "@/types"
+
+import {
+  getJudgedFoldersInfo,
+  getExtractedFoldersInfo,
+  requestAIAnalysis,
+  FolderInfo,
+} from "@/api/aiAnlysis"
 
 const IntelligentAnalysis: React.FC = () => {
-  const [rules, setRules] = useState<JudgmentRule[]>([]);
-  const [results, setResults] = useState<JudgmentResult[]>([]);
-  const [files, setFiles] = useState<FileInfo[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string>('all');
-  const [selectedRule, setSelectedRule] = useState<string>('all');
-  const [selectedResult, setSelectedResult] = useState<string>('all');
-  const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<JudgmentRule | null>(null);
-  const { toast } = useToast();
+  const [rules, setRules] = useState<JudgmentRule[]>([])
+  const [results, setResults] = useState<JudgmentResult[]>([])
+  const [files, setFiles] = useState<FileInfo[]>([])
+  const [selectedFile, setSelectedFile] = useState<string>("all")
+  const [selectedRule, setSelectedRule] = useState<string>("all")
+  const [selectedResult, setSelectedResult] = useState<string>("all")
+  const [isRuleDialogOpen, setIsRuleDialogOpen] = useState(false)
+  const [editingRule, setEditingRule] = useState<JudgmentRule | null>(null)
+  const { toast } = useToast()
+
+  const [resultsFolderInfo, setResultsFolderInfo] = useState<FolderInfo[]>([])
+  const [extractedFolderInfo, setExtractedFolderInfo] = useState<FolderInfo[]>(
+    []
+  )
 
   const form = useForm<Partial<JudgmentRule>>({
     defaultValues: {
-      name: '',
-      description: '',
-      type: 'compliance',
+      name: "",
+      description: "",
+      type: "compliance",
       conditions: [],
       actions: [],
-      enabled: true
-    }
-  });
+      enabled: true,
+    },
+  })
 
   // 加载数据
   useEffect(() => {
-    const loadData = () => {
-      setRules(dataService.getAllJudgmentRules());
-      setFiles(dataService.getAllFiles().filter(f => f.status === 'completed'));
-      
-      // 加载所有判别结果
-      const allResults: JudgmentResult[] = [];
-      dataService.getAllFiles().forEach(file => {
-        const fileResults = dataService.getJudgmentResults(file.id);
-        allResults.push(...fileResults);
-      });
-      setResults(allResults);
-    };
+    const loadData = async () => {
+      setRules(dataService.getAllJudgmentRules())
+      setFiles(
+        dataService.getAllFiles().filter((f) => f.status === "extracted")
+      )
+      const extractedFolders = await getExtractedFoldersInfo()
+      const judgedFolders = await getJudgedFoldersInfo()
+      setExtractedFolderInfo(extractedFolders)
+      setResultsFolderInfo(judgedFolders)
 
-    loadData();
-    const interval = setInterval(loadData, 2000);
-    return () => clearInterval(interval);
-  }, []);
+      // 加载所有判别结果
+      const allResults: JudgmentResult[] = []
+      dataService.getAllFiles().forEach((file) => {
+        const fileResults = dataService.getJudgmentResults(file.id)
+        allResults.push(...fileResults)
+      })
+      setResults(allResults)
+    }
+
+    loadData()
+    const interval = setInterval(loadData, 200000)
+    return () => clearInterval(interval)
+  }, [])
 
   // 过滤结果
-  const filteredResults = results.filter(result => {
-    if (selectedFile !== 'all' && result.fileId !== selectedFile) return false;
-    if (selectedRule !== 'all' && result.ruleId !== selectedRule) return false;
-    if (selectedResult !== 'all' && result.result !== selectedResult) return false;
-    return true;
-  });
+  const filteredResults = results.filter((result) => {
+    if (selectedFile !== "all" && result.fileId !== selectedFile) return false
+    if (selectedRule !== "all" && result.ruleId !== selectedRule) return false
+    if (selectedResult !== "all" && result.result !== selectedResult)
+      return false
+    return true
+  })
 
   // 统计数据
   const stats = {
     total: results.length,
-    pass: results.filter(r => r.result === 'pass').length,
-    fail: results.filter(r => r.result === 'fail').length,
-    warning: results.filter(r => r.result === 'warning').length
-  };
+    pass: results.filter((r) => r.result === "pass").length,
+    fail: results.filter((r) => r.result === "fail").length,
+    warning: results.filter((r) => r.result === "warning").length,
+  }
 
   // 保存规则
   const saveRule = (data: Partial<JudgmentRule>) => {
     try {
       const ruleData: JudgmentRule = {
         id: editingRule?.id || `judge-${Date.now()}`,
-        name: data.name || '',
-        description: data.description || '',
-        type: data.type || 'compliance',
+        name: data.name || "",
+        description: data.description || "",
+        type: data.type || "compliance",
         conditions: data.conditions || [],
         actions: data.actions || [],
         enabled: data.enabled ?? true,
         createdAt: editingRule?.createdAt || new Date(),
-        updatedAt: new Date()
-      };
-
-      if (editingRule) {
-        dataService.updateJudgmentRule(ruleData.id, ruleData);
-        toast({
-          title: "规则已更新",
-          description: "判别规则更新成功"
-        });
-      } else {
-        dataService.addJudgmentRule(ruleData);
-        toast({
-          title: "规则已创建",
-          description: "新的判别规则创建成功"
-        });
+        updatedAt: new Date(),
       }
 
-      setIsRuleDialogOpen(false);
-      setEditingRule(null);
-      form.reset();
+      if (editingRule) {
+        dataService.updateJudgmentRule(ruleData.id, ruleData)
+        toast({
+          title: "规则已更新",
+          description: "判别规则更新成功",
+        })
+      } else {
+        dataService.addJudgmentRule(ruleData)
+        toast({
+          title: "规则已创建",
+          description: "新的判别规则创建成功",
+        })
+      }
+
+      setIsRuleDialogOpen(false)
+      setEditingRule(null)
+      form.reset()
     } catch (error) {
       toast({
         title: "保存失败",
         description: "规则保存时发生错误",
-        variant: "destructive"
-      });
+        variant: "destructive",
+      })
     }
-  };
+  }
 
   // 删除规则
   const deleteRule = (ruleId: string) => {
-    dataService.deleteJudgmentRule(ruleId);
+    dataService.deleteJudgmentRule(ruleId)
     toast({
       title: "规则已删除",
-      description: "判别规则删除成功"
-    });
-  };
+      description: "判别规则删除成功",
+    })
+  }
 
   // 切换规则状态
   const toggleRule = (ruleId: string, enabled: boolean) => {
-    dataService.updateJudgmentRule(ruleId, { enabled });
+    dataService.updateJudgmentRule(ruleId, { enabled })
     toast({
       title: enabled ? "规则已启用" : "规则已禁用",
-      description: `判别规则${enabled ? '启用' : '禁用'}成功`
-    });
-  };
+      description: `判别规则${enabled ? "启用" : "禁用"}成功`,
+    })
+  }
 
-  // 导出结果
-  const exportResults = () => {
-    const csvContent = [
-      ['文件名', '规则名称', '判别结果', '分类', '评分', '置信度', '详细说明', '判别时间'],
-      ...filteredResults.map(result => {
-        const file = files.find(f => f.id === result.fileId);
-        const rule = rules.find(r => r.id === result.ruleId);
-        return [
-          file?.name || '未知文件',
-          rule?.name || '未知规则',
-          result.result,
-          result.classification || '',
-          result.score?.toString() || '',
-          result.confidence.toString(),
-          result.details.replace(/\n/g, ' '),
-          new Date(result.judgedAt).toLocaleString()
-        ];
-      })
-    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `judgment_results_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-
+  // ai判别
+  const AIAnalysis = (folderName: string) => async () => {
     toast({
-      title: "导出成功",
-      description: "判别结果已导出为CSV文件"
-    });
-  };
+      title: "智能判别",
+      description: "正在进行智能判别",
+    })
+    const result = await requestAIAnalysis(folderName)
+    if (result.success) {
+      // setFiles(result.)
+      toast({
+        title: "智能判别",
+        description: "判别成功",
+      })
+    } else {
+      toast({
+        title: "智能判别",
+        description: result.error,
+      })
+    }
+    console.log(result)
+    //刷新判别结果文件信息
+    const judgedFolders = await getJudgedFoldersInfo()
+    setResultsFolderInfo(judgedFolders)
+  }
 
   // 获取结果图标和颜色
   const getResultIcon = (result: string) => {
     switch (result) {
-      case 'pass':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case 'fail':
-        return <XCircle className="h-5 w-5 text-red-600" />;
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+      case "pass":
+        return <CheckCircle className="h-5 w-5 text-green-600" />
+      case "fail":
+        return <XCircle className="h-5 w-5 text-red-600" />
+      case "warning":
+        return <AlertTriangle className="h-5 w-5 text-yellow-600" />
       default:
-        return <AlertTriangle className="h-5 w-5 text-gray-600" />;
+        return <AlertTriangle className="h-5 w-5 text-gray-600" />
     }
-  };
+  }
 
   const getResultColor = (result: string) => {
     switch (result) {
-      case 'pass': return 'text-green-600 bg-green-50 border-green-200';
-      case 'fail': return 'text-red-600 bg-red-50 border-red-200';
-      case 'warning': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case "pass":
+        return "text-green-600 bg-green-50 border-green-200"
+      case "fail":
+        return "text-red-600 bg-red-50 border-red-200"
+      case "warning":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200"
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200"
     }
-  };
+  }
 
   const getResultLabel = (result: string) => {
     switch (result) {
-      case 'pass': return '通过';
-      case 'fail': return '不通过';
-      case 'warning': return '警告';
-      default: return '未知';
+      case "pass":
+        return "通过"
+      case "fail":
+        return "不通过"
+      case "warning":
+        return "警告"
+      default:
+        return "未知"
     }
-  };
+  }
 
   const getRuleTypeLabel = (type: string) => {
     switch (type) {
-      case 'compliance': return '合规性判别';
-      case 'classification': return '等级分类';
-      case 'interpretation': return '含义解释';
-      default: return type;
+      case "compliance":
+        return "合规性判别"
+      case "classification":
+        return "等级分类"
+      case "interpretation":
+        return "含义解释"
+      default:
+        return type
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -227,6 +279,7 @@ const IntelligentAnalysis: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             智能判别分析
           </h1>
+
           <p className="text-lg text-gray-600">
             基于自定义规则进行智能判别，支持合规性检查、等级分类和含义解释
           </p>
@@ -250,9 +303,14 @@ const IntelligentAnalysis: React.FC = () => {
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.pass}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {stats.pass}
+              </div>
               <p className="text-xs text-muted-foreground">
-                {stats.total > 0 ? ((stats.pass / stats.total) * 100).toFixed(1) : 0}%
+                {stats.total > 0
+                  ? ((stats.pass / stats.total) * 100).toFixed(1)
+                  : 0}
+                %
               </p>
             </CardContent>
           </Card>
@@ -263,9 +321,14 @@ const IntelligentAnalysis: React.FC = () => {
               <XCircle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.fail}</div>
+              <div className="text-2xl font-bold text-red-600">
+                {stats.fail}
+              </div>
               <p className="text-xs text-muted-foreground">
-                {stats.total > 0 ? ((stats.fail / stats.total) * 100).toFixed(1) : 0}%
+                {stats.total > 0
+                  ? ((stats.fail / stats.total) * 100).toFixed(1)
+                  : 0}
+                %
               </p>
             </CardContent>
           </Card>
@@ -276,9 +339,14 @@ const IntelligentAnalysis: React.FC = () => {
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{stats.warning}</div>
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats.warning}
+              </div>
               <p className="text-xs text-muted-foreground">
-                {stats.total > 0 ? ((stats.warning / stats.total) * 100).toFixed(1) : 0}%
+                {stats.total > 0
+                  ? ((stats.warning / stats.total) * 100).toFixed(1)
+                  : 0}
+                %
               </p>
             </CardContent>
           </Card>
@@ -302,16 +370,22 @@ const IntelligentAnalysis: React.FC = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">文件筛选</label>
-                    <Select value={selectedFile} onValueChange={setSelectedFile}>
+                    <label className="text-sm font-medium mb-2 block">
+                      文件筛选
+                    </label>
+                    <Select
+                      value={selectedFile}
+                      onValueChange={setSelectedFile}>
                       <SelectTrigger>
                         <SelectValue placeholder="选择文件" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">所有文件</SelectItem>
-                        {files.map(file => (
-                          <SelectItem key={file.id} value={file.id}>
-                            {file.name}
+                        {extractedFolderInfo.map((file) => (
+                          <SelectItem
+                            key={file.area_code}
+                            value={file.area_code}>
+                            {file.origin_folder_name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -319,14 +393,18 @@ const IntelligentAnalysis: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">规则筛选</label>
-                    <Select value={selectedRule} onValueChange={setSelectedRule}>
+                    <label className="text-sm font-medium mb-2 block">
+                      规则筛选
+                    </label>
+                    <Select
+                      value={selectedRule}
+                      onValueChange={setSelectedRule}>
                       <SelectTrigger>
                         <SelectValue placeholder="选择规则" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">所有规则</SelectItem>
-                        {rules.map(rule => (
+                        {rules.map((rule) => (
                           <SelectItem key={rule.id} value={rule.id}>
                             {rule.name}
                           </SelectItem>
@@ -336,8 +414,12 @@ const IntelligentAnalysis: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">结果筛选</label>
-                    <Select value={selectedResult} onValueChange={setSelectedResult}>
+                    <label className="text-sm font-medium mb-2 block">
+                      结果筛选
+                    </label>
+                    <Select
+                      value={selectedResult}
+                      onValueChange={setSelectedResult}>
                       <SelectTrigger>
                         <SelectValue placeholder="选择结果" />
                       </SelectTrigger>
@@ -351,9 +433,10 @@ const IntelligentAnalysis: React.FC = () => {
                   </div>
 
                   <div className="flex items-end">
-                    <Button onClick={exportResults} className="w-full">
-                      <Download className="h-4 w-4 mr-2" />
-                      导出结果
+                    <Button
+                      onClick={AIAnalysis(selectedFile)}
+                      className="w-full">
+                      智能判别
                     </Button>
                   </div>
                 </div>
@@ -369,42 +452,15 @@ const IntelligentAnalysis: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {filteredResults.length > 0 ? (
-                  <div className="space-y-3">
-                    {filteredResults.map((result) => {
-                      const file = files.find(f => f.id === result.fileId);
-                      
-                      return (
-                        <div key={result.id} className={`border rounded-lg p-4 ${getResultColor(result.result)}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {getResultIcon(result.result)}
-                              <span className="font-medium">
-                                {file?.name || '未知文件'}
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                处理{result.result === 'pass' ? '成功' : result.result === 'fail' ? '失败' : '完成'}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {new Date(result.judgedAt).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Brain className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-2">
-                      暂无判别结果
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      请先上传文件并配置判别规则
-                    </p>
-                  </div>
-                )}
+                {/* ✅ map 循环生成 */}
+                {resultsFolderInfo.map((item) => (
+                  <FolderCard
+                    key={item.area_code}
+                    areaCode={item.area_code}
+                    folderName="results"
+                    originFolderName={item.origin_folder_name}
+                  />
+                ))}
               </CardContent>
             </Card>
           </TabsContent>
@@ -418,12 +474,15 @@ const IntelligentAnalysis: React.FC = () => {
                     <Settings className="h-5 w-5" />
                     判别规则管理
                   </span>
-                  <Dialog open={isRuleDialogOpen} onOpenChange={setIsRuleDialogOpen}>
+                  <Dialog
+                    open={isRuleDialogOpen}
+                    onOpenChange={setIsRuleDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button onClick={() => {
-                        setEditingRule(null);
-                        form.reset();
-                      }}>
+                      <Button
+                        onClick={() => {
+                          setEditingRule(null)
+                          form.reset()
+                        }}>
                         <Plus className="h-4 w-4 mr-2" />
                         新建规则
                       </Button>
@@ -431,15 +490,17 @@ const IntelligentAnalysis: React.FC = () => {
                     <DialogContent className="max-w-2xl">
                       <DialogHeader>
                         <DialogTitle>
-                          {editingRule ? '编辑判别规则' : '新建判别规则'}
+                          {editingRule ? "编辑判别规则" : "新建判别规则"}
                         </DialogTitle>
                         <DialogDescription>
                           配置智能判别规则，系统将根据规则自动分析文档内容
                         </DialogDescription>
                       </DialogHeader>
-                      
+
                       <Form {...form}>
-                        <form onSubmit={form.handleSubmit(saveRule)} className="space-y-4">
+                        <form
+                          onSubmit={form.handleSubmit(saveRule)}
+                          className="space-y-4">
                           <FormField
                             control={form.control}
                             name="name"
@@ -447,7 +508,10 @@ const IntelligentAnalysis: React.FC = () => {
                               <FormItem>
                                 <FormLabel>规则名称</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="输入规则名称" {...field} />
+                                  <Input
+                                    placeholder="输入规则名称"
+                                    {...field}
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -461,7 +525,10 @@ const IntelligentAnalysis: React.FC = () => {
                               <FormItem>
                                 <FormLabel>规则描述</FormLabel>
                                 <FormControl>
-                                  <Textarea placeholder="描述规则的用途和功能" {...field} />
+                                  <Textarea
+                                    placeholder="描述规则的用途和功能"
+                                    {...field}
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -474,16 +541,24 @@ const IntelligentAnalysis: React.FC = () => {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>判别类型</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}>
                                   <FormControl>
                                     <SelectTrigger>
                                       <SelectValue placeholder="选择判别类型" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    <SelectItem value="compliance">合规性判别</SelectItem>
-                                    <SelectItem value="classification">等级分类判别</SelectItem>
-                                    <SelectItem value="interpretation">含义解释判别</SelectItem>
+                                    <SelectItem value="compliance">
+                                      合规性判别
+                                    </SelectItem>
+                                    <SelectItem value="classification">
+                                      等级分类判别
+                                    </SelectItem>
+                                    <SelectItem value="interpretation">
+                                      含义解释判别
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormDescription>
@@ -500,7 +575,9 @@ const IntelligentAnalysis: React.FC = () => {
                             render={({ field }) => (
                               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                 <div className="space-y-0.5">
-                                  <FormLabel className="text-base">启用规则</FormLabel>
+                                  <FormLabel className="text-base">
+                                    启用规则
+                                  </FormLabel>
                                   <FormDescription>
                                     启用后，系统将自动应用此规则进行智能判别
                                   </FormDescription>
@@ -516,15 +593,14 @@ const IntelligentAnalysis: React.FC = () => {
                           />
 
                           <div className="flex justify-end gap-2">
-                            <Button 
-                              type="button" 
+                            <Button
+                              type="button"
                               variant="outline"
-                              onClick={() => setIsRuleDialogOpen(false)}
-                            >
+                              onClick={() => setIsRuleDialogOpen(false)}>
                               取消
                             </Button>
                             <Button type="submit">
-                              {editingRule ? '更新规则' : '创建规则'}
+                              {editingRule ? "更新规则" : "创建规则"}
                             </Button>
                           </div>
                         </form>
@@ -542,45 +618,51 @@ const IntelligentAnalysis: React.FC = () => {
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <h3 className="font-medium">{rule.name}</h3>
-                              <Badge variant={rule.enabled ? "default" : "secondary"}>
-                                {rule.enabled ? '已启用' : '已禁用'}
+                              <Badge
+                                variant={
+                                  rule.enabled ? "default" : "secondary"
+                                }>
+                                {rule.enabled ? "已启用" : "已禁用"}
                               </Badge>
                               <Badge variant="outline">
                                 {getRuleTypeLabel(rule.type)}
                               </Badge>
                             </div>
-                            <p className="text-sm text-gray-600 mb-2">{rule.description}</p>
+                            <p className="text-sm text-gray-600 mb-2">
+                              {rule.description}
+                            </p>
                             <p className="text-xs text-gray-500">
-                              创建时间: {new Date(rule.createdAt).toLocaleString()}
+                              创建时间:{" "}
+                              {new Date(rule.createdAt).toLocaleString()}
                             </p>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             <Switch
                               checked={rule.enabled}
-                              onCheckedChange={(enabled) => toggleRule(rule.id, enabled)}
+                              onCheckedChange={(enabled) =>
+                                toggleRule(rule.id, enabled)
+                              }
                             />
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => {
-                                setEditingRule(rule);
+                                setEditingRule(rule)
                                 form.reset({
                                   name: rule.name,
                                   description: rule.description,
                                   type: rule.type,
-                                  enabled: rule.enabled
-                                });
-                                setIsRuleDialogOpen(true);
-                              }}
-                            >
+                                  enabled: rule.enabled,
+                                })
+                                setIsRuleDialogOpen(true)
+                              }}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deleteRule(rule.id)}
-                            >
+                              onClick={() => deleteRule(rule.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -605,7 +687,7 @@ const IntelligentAnalysis: React.FC = () => {
         </Tabs>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default IntelligentAnalysis;
+export default IntelligentAnalysis
