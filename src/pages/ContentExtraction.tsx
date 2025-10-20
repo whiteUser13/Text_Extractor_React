@@ -105,7 +105,7 @@ const FileList: React.FC<FileListProps> = ({ areaCode }) => {
     return (
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <Loader2 className="h-3 w-3 animate-spin" />
-        加载文件中...
+        加载文件中..
       </div>
     )
   }
