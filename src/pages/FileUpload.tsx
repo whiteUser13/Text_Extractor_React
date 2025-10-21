@@ -35,6 +35,13 @@ import {
   isPdfFile,
   isWordFile,
 } from "@/utils/fileUtils"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import type { FileInfo, DocumentParseResult } from "@/types"
 import FilePreview from "@/components/FilePreview"
 import axios from "axios"
@@ -47,6 +54,9 @@ const FileUpload: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false)
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [selectedCol, setSelectedCol] = useState<string>("")
+  const [colsName, setColsName] = useState<string[]>([])
 
   // 获取文件图标
   const getFileIcon = (file: File | FileInfo) => {
@@ -460,8 +470,9 @@ const FileUpload: React.FC = () => {
         </div>
 
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="upload">文件上传</TabsTrigger>
+            <TabsTrigger value="download">文件下载</TabsTrigger>
             <TabsTrigger value="manage">文件管理</TabsTrigger>
           </TabsList>
 
@@ -538,7 +549,96 @@ const FileUpload: React.FC = () => {
               </Alert>
             )}
           </TabsContent>
+          <TabsContent value="download" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    台账表格上传
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                      dragActive
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}>
+                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p className="text-lg font-medium text-gray-900">
+                      拖拽文件到此处上传
+                      {/* 支持的文件类型 */}
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-600 mb-2">
+                          支持的文件类型：
+                          <Badge variant="outline">csv</Badge>
+                          <Badge variant="outline">Excel (xlsx)</Badge>
+                        </p>
 
+                        <p className="text-xs text-green-600 mt-2">
+                          文件大小小于10Mb
+                        </p>
+                      </div>
+                    </p>
+
+                    <input
+                      type="file"
+                      multiple
+                      accept=".xlsx,.cxv"
+                      onChange={handleFileInput}
+                      className="hidden"
+                      ref={fileInputRef}
+                    />
+                    <Button
+                      variant="outline"
+                      className="cursor-pointer"
+                      disabled={isUploading}
+                      onClick={() => fileInputRef.current?.click()}>
+                      {isUploading ? "上传中..." : "选择文件"}
+                    </Button>
+                  </div>
+                </CardContent>
+                {/* 上传进度 */}
+                {isUploading && (
+                  <Alert>
+                    <Upload className="h-4 w-4" />
+                    <AlertDescription>正在解析文件，请稍候...</AlertDescription>
+                  </Alert>
+                )}
+              </Card>
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    文件预览与下载
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      文件筛选
+                    </label>
+                    <Select value={selectedCol} onValueChange={setSelectedCol}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="选择地块编码列名" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">所有文件</SelectItem>
+                        {colsName.map((col) => (
+                          <SelectItem key={col} value={col}>
+                            {col}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
           <TabsContent value="manage" className="space-y-6">
             {/* 文件列表 */}
             <Card className="bg-white shadow-lg">

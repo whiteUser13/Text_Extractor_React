@@ -7,6 +7,7 @@ import type {
   JudgmentResult,
   DocumentParseResult,
   ReportStats,
+  Task,
 } from "@/types"
 
 // 模拟数据存储服务
@@ -18,6 +19,7 @@ class DataService {
   private extractionResults: Map<string, ExtractionResult[]> = new Map()
   private judgmentResults: Map<string, JudgmentResult[]> = new Map()
   private parseResults: Map<string, DocumentParseResult> = new Map()
+  private tasks: Map<string, Task> = new Map()
 
   constructor() {
     this.initializeDefaultRules()
@@ -98,6 +100,35 @@ class DataService {
     )
   }
 
+  // 任务管理
+  addTask(task: Task): void {
+    this.tasks.set(task.id, task)
+  }
+
+  updateTask(id: string, updates: Partial<Task>): void {
+    const task = this.tasks.get(id)
+    if (task) {
+      this.tasks.set(id, { ...task, ...updates, updatedAt: new Date() })
+    }
+  }
+
+  deleteTask(id: string): void {
+    this.tasks.delete(id)
+  }
+
+  getTask(id: string): Task | undefined {
+    return this.tasks.get(id)
+  }
+
+  getAllTasks(): Task[] {
+    return Array.from(this.tasks.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    )
+  }
+
+  getEnabledTasks(): Task[] {
+    return this.getAllTasks().filter((task) => task.enabled)
+  }
   // 文件管理
   addFile(file: FileInfo): void {
     this.files.set(file.id, file)

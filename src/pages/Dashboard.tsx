@@ -21,11 +21,17 @@ import {
   Settings,
   BarChart3,
   RefreshCw,
+  Briefcase,
 } from "lucide-react"
+import {
+  CreateTaskDialog,
+  TaskSelector,
+  TaskList,
+} from "@/components/TaskManagement"
 import { Link } from "react-router-dom"
 import { dataService } from "@/services/dataService"
 import { initializeDemoData, clearDemoData } from "@/services/demoData"
-import type { ReportStats, ProcessingStage } from "@/types"
+import type { ReportStats, ProcessingStage, Task } from "@/types"
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<ReportStats>({
@@ -38,6 +44,9 @@ const Dashboard: React.FC = () => {
   })
 
   const [recentFiles, setRecentFiles] = useState<any[]>([])
+  const [isAdmin, setIsAdmin] = useState(true) // 模拟管理员权限
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [tasksRefreshKey, setTasksRefreshKey] = useState(0)
 
   useEffect(() => {
     const updateStats = () => {
@@ -99,6 +108,13 @@ const Dashboard: React.FC = () => {
     }
     return labels[status] || status
   }
+  const handleTaskCreated = () => {
+    setTasksRefreshKey((prev) => prev + 1)
+  }
+
+  const handleTaskSelect = (task: Task) => {
+    setSelectedTask(task)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -114,7 +130,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">总文件数</CardTitle>
@@ -122,7 +138,7 @@ const Dashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalFiles}</div>
-              <p className="text-xs text-muted-foreground">已上传的报告文件</p>
+              <p className="text-xs text-muted-foreground">已下载的报告文件</p>
             </CardContent>
           </Card>
 
@@ -141,19 +157,6 @@ const Dashboard: React.FC = () => {
 
           <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">处理中</CardTitle>
-              <Clock className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {stats.processingFiles}
-              </div>
-              <p className="text-xs text-muted-foreground">正在处理的文件</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">错误文件</CardTitle>
               <AlertCircle className="h-4 w-4 text-red-600" />
             </CardHeader>
@@ -167,13 +170,95 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* 主要内容区域 */}
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs defaultValue="tasks" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="tasks">任务管理</TabsTrigger>
             <TabsTrigger value="overview">系统概览</TabsTrigger>
-            <TabsTrigger value="progress">处理进度</TabsTrigger>
             <TabsTrigger value="errors">错误统计</TabsTrigger>
             <TabsTrigger value="recent">最近文件</TabsTrigger>
           </TabsList>
+
+          {/* 任务管理标签页 */}
+          <TabsContent value="tasks" className="space-y-6">
+            {/* 管理员视图 - 新建任务和任务列表 */}
+            {isAdmin && (
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5" />
+                        任务管理中心
+                      </CardTitle>
+                      <CardDescription>
+                        创建和管理审核任务，配置提取规则和判别规则
+                      </CardDescription>
+                    </div>
+                    <CreateTaskDialog onTaskCreated={handleTaskCreated} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <TaskList
+                    key={tasksRefreshKey}
+                    onTasksChange={handleTaskCreated}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 用户视图 - 选择任务 */}
+            <Card className="bg-white shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  选择审核任务
+                </CardTitle>
+                <CardDescription>
+                  选择一个任务来处理您的报告文件，系统将自动应用该任务的提取和判别规则
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TaskSelector
+                  key={tasksRefreshKey}
+                  selectedTaskId={selectedTask?.id}
+                  onTaskSelect={handleTaskSelect}
+                />
+
+                {selectedTask && (
+                  <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-blue-900 mb-1">
+                          已选择任务: {selectedTask.name}
+                        </h4>
+                        <p className="text-sm text-blue-700 mb-3">
+                          {selectedTask.description ||
+                            "该任务将应用预设的提取和判别规则"}
+                        </p>
+                        <div className="flex gap-2">
+                          <Badge variant="secondary">
+                            {selectedTask.extractionRules.length} 条提取规则
+                          </Badge>
+                          <Badge variant="secondary">
+                            {selectedTask.judgmentRules.length} 条判别规则
+                          </Badge>
+                        </div>
+                        <div className="mt-4">
+                          <Link to="/upload">
+                            <Button className="bg-blue-600 hover:bg-blue-700">
+                              <Upload className="h-4 w-4 mr-2" />
+                              上传文件并开始处理
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -261,49 +346,6 @@ const Dashboard: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="progress" className="space-y-6">
-            <Card className="bg-white shadow-lg">
-              <CardHeader>
-                <CardTitle>处理进度监控</CardTitle>
-                <CardDescription>实时监控文件处理进度和状态</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {recentFiles.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentFiles
-                      .filter((file) => file.status === "processing")
-                      .map((file) => {
-                        const status = dataService.getProcessingStatus(file.id)
-                        return (
-                          <div key={file.id} className="border rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{file.name}</span>
-                              <Badge variant="outline">
-                                {status ? getStageLabel(status.stage) : "未知"}
-                              </Badge>
-                            </div>
-                            <div className="space-y-2">
-                              <Progress
-                                value={status?.progress || 0}
-                                className="w-full"
-                              />
-                              <p className="text-sm text-gray-600">
-                                {status?.message || "等待处理..."}
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    暂无正在处理的文件
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="errors" className="space-y-6">

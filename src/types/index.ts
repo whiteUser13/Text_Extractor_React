@@ -120,6 +120,20 @@ export interface ExtractionResult {
   extractedAt: Date
 }
 
+// 任务类型
+export interface Task {
+  id: string
+  name: string
+  description?: string
+  extractionRules: ExtractionRule[]
+  judgmentRules: JudgmentRule[]
+  createdBy: "admin" | "user"
+  createdAt: Date
+  updatedAt: Date
+  enabled: boolean
+  fileCount?: number // 使用此任务处理的文件数量
+}
+
 // 判别结果
 export interface JudgmentResult {
   id: string
