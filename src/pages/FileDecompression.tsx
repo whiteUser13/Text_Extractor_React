@@ -65,13 +65,75 @@ const FileDecompression: React.FC = () => {
       }
     }
 
-    // 初始加载
+    // 初始加载（保证首次展示）
     loadFiles()
 
-    // 设置定时器定期刷新文件列表，以便实时同步文件上传页面的变化
-    const interval = setInterval(loadFiles, 10000000)
+    // 优先使用 SSE 订阅后端变化；若 SSE 不可用则回退到轮询
+    let eventSource: EventSource | null = null
+    let pollingInterval: number | null = null
 
-    return () => clearInterval(interval)
+    const startSSE = () => {
+      try {
+        eventSource = new EventSource('http://127.0.0.1:8000/files_info/zip/stream')
+
+        eventSource.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data)
+            // 如果后端发送整个响应体（与 /files_info/zip 一致）
+            if (data && data.status === 'success' && Array.isArray(data.zip_files)) {
+              const files: FileInfo[] = data.zip_files.map((item: any) => ({
+                id: item.id,
+                name: item.origin_name,
+                size: item.size_kb || item.size || 0,
+                type: item.type,
+                uploadTime: item.upload_time,
+                status: item.status,
+              }))
+              setAllFiles(files)
+            } else if (data && data.zip_files && Array.isArray(data.zip_files)) {
+              // 某些情况下后端返回不含 status 字段
+              const files: FileInfo[] = data.zip_files.map((item: any) => ({
+                id: item.id,
+                name: item.origin_name,
+                size: item.size_kb || item.size || 0,
+                type: item.type,
+                uploadTime: item.upload_time,
+                status: item.status,
+              }))
+              setAllFiles(files)
+            }
+          } catch (err) {
+            console.error('解析 SSE 数据失败', err)
+          }
+        }
+
+        eventSource.onerror = (err) => {
+          console.warn('SSE 连接发生错误，回退到轮询：', err)
+          if (eventSource) {
+            eventSource.close()
+            eventSource = null
+          }
+          // 启动轮询作为回退
+          if (!pollingInterval) {
+            pollingInterval = window.setInterval(loadFiles, 5000)
+          }
+        }
+      } catch (err) {
+        console.error('无法建立 SSE 连接，启用轮询：', err)
+        pollingInterval = window.setInterval(loadFiles, 5000)
+      }
+    }
+
+    startSSE()
+
+    return () => {
+      if (eventSource) {
+        eventSource.close()
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+      }
+    }
   }, [])
   const handleStartDecompression = async () => {
     setIsProcessing(true)
