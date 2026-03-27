@@ -8,6 +8,13 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import ProgressBar from "@/components/ui/progressbar"
+import DataList from "@/components/FileUpload/DataList"
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -42,21 +49,133 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { FileInfo, DocumentParseResult } from "@/types"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import type { FileInfo, DocumentParseResult, Task } from "@/types"
 import FilePreview from "@/components/FilePreview"
+import {
+  addDownloadTask,
+  DownloadTaskInfo,
+  getDownloadTasksInfo,
+  UploadFileInfo,
+  getUploadFileInfo,
+  uploadFile,
+  retryErrorDownload,
+  deleteUploadFile,
+} from "@/api/fileUpload"
 import axios from "axios"
+import { parseExcel, ParsedExcelResult } from "../utils/parseExcel"
+import { useTaskStore } from "@/context/TaskContext"
 
 const FileUpload: React.FC = () => {
+  const [taskStats, setTaskStats] = useState<any[]>([])
+
+  // 任务选择
+  const [tasks, setTasks] = useState<Task[]>([]) //所有任务
+  const { selectedTaskId, setSelectedTaskId, selectedTask, setSelectedTask } =
+    useTaskStore()
+
+  const handleSelectTask = (taskId: string) => {
+    console.log(tasks)
+    setSelectedTaskId(taskId)
+    const task = tasks.find((t) => t.id === taskId) || null
+    setSelectedTask(task)
+  }
+
+  // 让切换功能受控
+  const [activeTab, setActiveTab] = useState<string>("upload")
+
+  // 1.文件上传
   const [dragActive, setDragActive] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [fileCounts, setFileCounts] = useState(0)
+  const [completedFileCounts, setCompletedFileCounts] = useState(0)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadTotal, setDownloadTotal] = useState(0)
+  const [downloadCompleted, setDownloadCompleted] = useState(0)
+  const [downloadError, setDownloadError] = useState(0)
 
+  // 2.上传文件管理
+  const [uploadFilesInfo, setUploadFilesInfo] = useState<UploadFileInfo[]>([])
+  const uploadFileTabColumns = [
+    { key: "origin_name", label: "文件名" },
+    { key: "size", label: "大小" },
+    { key: "type", label: "类型" },
+    { key: "upload_time", label: "上传时间" },
+    { key: "task_id", label: "任务" },
+    { key: "user_id", label: "上传用户" },
+  ]
+
+  // 3.台账表格上传与下载
+  const excelFileInputRef = useRef<HTMLInputElement>(null)
   const [selectedCol, setSelectedCol] = useState<string>("")
-  const [colsName, setColsName] = useState<string[]>([])
+  const [excelData, setExcelData] = useState<ParsedExcelResult | null>(null)
+  const [selectedAreaCode, setSelectedAreaCode] = useState<string>("")
+
+  // 12.9修改
+  const [checkAll, setCheckAll] = useState<boolean | "indeterminate">(false)
+  const [selectedAreaCodeArr, setSelectedAreaCodeArr] = useState<string[]>([])
+  const [codeArr, setCodeArr] = useState<string[]>([])
+
+  // 4.下载文件管理
+  const [downloadTasks, setDownloadTasks] = useState<DownloadTaskInfo[]>([])
+  const downloadTaskTabColumns = [
+    { key: "area_code", label: "地块编码" },
+    { key: "file_name", label: "文件名" },
+    { key: "size", label: "大小" },
+    {
+      key: "status",
+      label: "状态",
+      render: (value: string) => {
+        return (
+          <div className="flex items-center gap-2">
+            <div
+              className={`inline-block w-3 h-3 rounded-full ${getStatusColor(
+                value,
+              )}`}
+            />
+            <span>{getStatusLabel(value)}</span>
+          </div>
+        )
+      },
+    },
+    { key: "created_at", label: "创建时间" },
+    { key: "task_id", label: "任务" },
+    {
+      key: "err_msg",
+      label: "错误信息",
+      render: (value: string) => {
+        if (value) {
+          return (
+            <Tooltip>
+              <TooltipTrigger>
+                <AlertCircle className="h-4 w-4 text-red-500" />
+              </TooltipTrigger>
+              <TooltipContent className="w-[400px]">
+                <p>{value}</p>
+              </TooltipContent>
+            </Tooltip>
+          )
+        }
+        return <div></div>
+      },
+    },
+  ]
+
+  useEffect(() => {
+    setTasks(dataService.getAllTasks())
+    console.log("selectedTask", selectedTask, selectedTaskId)
+
+    if (selectedAreaCodeArr.length === codeArr.length && codeArr.length > 0) {
+      setCheckAll(true)
+    } else {
+      setCheckAll(false)
+    }
+  }, [selectedAreaCodeArr, codeArr, selectedTask, selectedTaskId])
 
   // 获取文件图标
   const getFileIcon = (file: File | FileInfo) => {
@@ -88,167 +207,7 @@ const FileUpload: React.FC = () => {
     if (!supportedTypes.includes(file.type)) {
       return `不支持的文件类型: ${file.type}`
     }
-    // 移除文件大小限制，允许上传任意大小的文件
-    // if (!validateFileSize(file)) {
-    //   return '文件大小超过10MB限制';
-    // }
     return null
-  }
-
-  // 生成模拟解析结果
-  const generateMockParseResult = (file: FileInfo): DocumentParseResult => {
-    const isImage = isImageFile({ type: file.type } as File)
-    const isPdf = isPdfFile({ type: file.type } as File)
-    const isWord = isWordFile({ type: file.type } as File)
-
-    // 根据文件类型生成不同的模拟内容
-    let mockContent = {
-      text: "",
-      tables: [] as any[],
-      images: [] as any[],
-      structure: {
-        title: "",
-        sections: [] as any[],
-        pageCount: 1,
-      },
-    }
-
-    if (isImage) {
-      mockContent = {
-        text: "通过OCR识别提取的文本内容：\n\n这是一个示例图片文件，包含了一些文本信息。OCR技术已成功识别出图片中的文字内容，包括标题、正文和其他相关信息。",
-        tables: [],
-        images: [
-          {
-            title: "原始图片",
-            description: "上传的图片文件",
-            page: 1,
-          },
-        ],
-        structure: {
-          title: file.name,
-          sections: [
-            {
-              title: "OCR识别结果",
-              level: 1,
-              page: 1,
-              content: "图片中识别出的文本内容",
-            },
-          ],
-          pageCount: 1,
-        },
-      }
-    } else if (isPdf) {
-      mockContent = {
-        text: `${file.name} - PDF文档解析结果\n\n第一章 概述\n本文档是一个示例PDF文件，包含了多个章节和丰富的内容结构。\n\n第二章 详细内容\n这里是文档的详细内容部分，包含了大量的文本信息、数据表格和图表。\n\n第三章 数据分析\n本章节包含了详细的数据分析结果和相关图表。\n\n第四章 结论\n基于前面的分析，我们得出了以下结论...`,
-        tables: [
-          {
-            title: "数据统计表",
-            headers: ["项目", "数值", "单位", "备注"],
-            rows: [
-              ["总数量", "1,234", "个", "统计截止到当前"],
-              ["平均值", "56.78", "%", "计算方法：总和/数量"],
-              ["最大值", "99.9", "%", "历史最高记录"],
-              ["最小值", "12.3", "%", "历史最低记录"],
-            ],
-            page: 2,
-          },
-          {
-            title: "分类汇总表",
-            headers: ["类别", "数量", "占比"],
-            rows: [
-              ["类别A", "456", "37%"],
-              ["类别B", "389", "31%"],
-              ["类别C", "389", "32%"],
-            ],
-            page: 3,
-          },
-        ],
-        images: [
-          {
-            title: "图1 趋势分析图",
-            description: "显示了过去12个月的数据变化趋势",
-            page: 2,
-          },
-          {
-            title: "图2 分布图",
-            description: "各类别数据的分布情况",
-            page: 3,
-          },
-        ],
-        structure: {
-          title: file.name.replace(/\.[^/.]+$/, ""),
-          sections: [
-            { title: "概述", level: 1, page: 1, content: "文档概述内容" },
-            { title: "详细内容", level: 1, page: 1, content: "详细内容描述" },
-            { title: "数据分析", level: 1, page: 2, content: "数据分析结果" },
-            { title: "统计图表", level: 2, page: 2, content: "各类统计图表" },
-            { title: "趋势分析", level: 2, page: 2, content: "数据趋势分析" },
-            { title: "结论", level: 1, page: 3, content: "分析结论" },
-          ],
-          pageCount: 3,
-        },
-      }
-    } else if (isWord) {
-      mockContent = {
-        text: `${file.name} - Word文档解析结果\n\n标题：报告文档\n\n1. 引言\n本报告旨在分析当前的业务状况并提出改进建议。\n\n2. 现状分析\n通过对现有数据的分析，我们发现了以下几个关键问题：\n- 效率有待提升\n- 成本控制需要加强\n- 质量管理需要完善\n\n3. 改进建议\n基于以上分析，我们提出以下改进建议：\n- 优化工作流程\n- 引入新技术\n- 加强培训\n\n4. 实施计划\n改进措施的具体实施计划如下...`,
-        tables: [
-          {
-            title: "实施计划表",
-            headers: ["阶段", "任务", "负责人", "完成时间"],
-            rows: [
-              ["第一阶段", "需求分析", "张三", "2024-01-15"],
-              ["第二阶段", "方案设计", "李四", "2024-02-15"],
-              ["第三阶段", "系统开发", "王五", "2024-04-15"],
-              ["第四阶段", "测试验收", "赵六", "2024-05-15"],
-            ],
-            page: 2,
-          },
-        ],
-        images: [
-          {
-            title: "流程图",
-            description: "业务流程优化示意图",
-            page: 1,
-          },
-        ],
-        structure: {
-          title: file.name.replace(/\.[^/.]+$/, ""),
-          sections: [
-            { title: "引言", level: 1, page: 1, content: "报告引言部分" },
-            { title: "现状分析", level: 1, page: 1, content: "当前状况分析" },
-            { title: "改进建议", level: 1, page: 2, content: "具体改进建议" },
-            { title: "实施计划", level: 1, page: 2, content: "详细实施计划" },
-          ],
-          pageCount: 2,
-        },
-      }
-    } else {
-      // 其他文件类型的默认内容
-      mockContent = {
-        text: `${file.name} - 文件解析结果\n\n这是一个通用文件的解析结果。系统已成功提取了文件中的基本信息和内容结构。`,
-        tables: [],
-        images: [],
-        structure: {
-          title: file.name,
-          sections: [
-            {
-              title: "文件内容",
-              level: 1,
-              page: 1,
-              content: "解析出的文件内容",
-            },
-          ],
-          pageCount: 1,
-        },
-      }
-    }
-
-    return {
-      id: generateFileId(),
-      fileId: file.id,
-      content: mockContent,
-      parsedAt: new Date(),
-    }
   }
 
   // 处理预览
@@ -257,9 +216,18 @@ const FileUpload: React.FC = () => {
     setPreviewOpen(true)
   }
 
-  // 处理文件选择
+  // 处理文件上传
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
+      if (!selectedTaskId) {
+        toast({
+          title: "请先选择任务",
+          description: "请在选择任务后再上传文件",
+          variant: "destructive",
+        })
+        return
+      }
+
       const fileArray = Array.from(files)
       const validFiles: File[] = []
       const errors: string[] = []
@@ -274,7 +242,6 @@ const FileUpload: React.FC = () => {
         }
       }
 
-      // 显示错误信息
       if (errors.length > 0) {
         toast({
           title: "文件验证失败",
@@ -283,98 +250,98 @@ const FileUpload: React.FC = () => {
         })
       }
 
-      // 处理有效文件
       if (validFiles.length > 0) {
         setIsUploading(true)
+        setFileCounts(validFiles.length)
+        setCompletedFileCounts(0)
 
-        // 创建文件信息并添加到数据服务
-        const fileInfos: FileInfo[] = validFiles.map((file) => ({
-          id: generateFileId(),
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          uploadTime: new Date(),
-          status: "uploading", // 先设为上传中状态
-        }))
+        let successCount = 0
+        let failCount = 0
+        const failedFiles: string[] = []
 
-        // 添加到数据服务
-        fileInfos.forEach((fileInfo) => {
-          dataService.addFile(fileInfo)
-        })
-
-        // 更新本地状态
-        setUploadedFiles((prev) => [...prev, ...fileInfos])
-
-        // 文件上传和处理过程
-        for (let i = 0; i < fileInfos.length; i++) {
-          toast({
-            title: "开始上传文件",
-            description: `正在上传 ${i}/${validFiles.length} 文件，请稍候...`,
-          })
+        for (let i = 0; i < validFiles.length; i++) {
           const file = validFiles[i]
           const formData = new FormData()
           formData.append("file", file)
 
-          const fileInfo = fileInfos[i]
-
-          // 真实上传
-          try {
-            // setUploading(true)
-            // setResult(null)
-            dataService.updateFile(fileInfo.id, { status: "processing" })
-            const res = await axios.post(
-              "http://localhost:8000/upload",
-              formData,
+          // 确保任务ID被正确传递
+          formData.append(
+            "data",
+            new Blob(
+              [
+                JSON.stringify({
+                  task_id: selectedTaskId,
+                  user_id: "current_user", // 这里可以从用户系统获取
+                }),
+              ],
               {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                },
-                onUploadProgress: (progressEvent) => {
-                  if (progressEvent.total) {
-                    const percent = Math.round(
-                      (progressEvent.loaded * 100) / progressEvent.total
-                    )
-                    console.log(percent)
+                type: "application/json",
+              },
+            ),
+          )
 
-                    // setResult(`正在上传：${percent}%`)
-                  }
-                },
-              }
-            )
-
-            // 生成解析结果
-            const parseResult = generateMockParseResult(fileInfo)
-            // 更新文件状态并添加解析结果
-            dataService.updateFile(fileInfo.id, {
-              status: "judged",
-              parseResult: parseResult,
+          try {
+            const result = await uploadFile(formData, (percent) => {
+              // 更新整体进度
+              const overallProgress =
+                ((i + percent / 100) / validFiles.length) * 100
+              setCompletedFileCounts(Math.round(overallProgress))
             })
 
-            // 更新本地状态
-            setUploadedFiles((prev) =>
-              prev.map((f) =>
-                f.id === fileInfo.id
-                  ? { ...f, status: "judged", parseResult: parseResult }
-                  : f
-              )
-            )
-          } catch (err: any) {
+            if (result.success) {
+              successCount++
+              toast({
+                title: "文件上传成功",
+                description: `文件 ${file.name} 已保存到任务【${selectedTaskId}】`,
+              })
+            } else {
+              failCount++
+              failedFiles.push(file.name)
+              toast({
+                title: "上传失败",
+                description: result.msg || `文件 ${file.name} 上传失败`,
+                variant: "destructive",
+              })
+            }
+          } catch (error: any) {
+            failCount++
+            failedFiles.push(file.name)
             toast({
               title: "上传失败",
-              description: "文件上传过程中发生错误",
+              description: `文件 ${file.name} 上传过程中发生错误: ${error.message || "未知错误"}`,
               variant: "destructive",
             })
-            setIsUploading(false)
           }
-          setIsUploading(false)
+
+          // 更新完成计数
+          setCompletedFileCounts(
+            Math.round(((i + 1) / validFiles.length) * 100),
+          )
+        }
+
+        setIsUploading(false)
+
+        // 显示上传总结
+        if (failCount > 0) {
           toast({
-            title: "文件上传完成",
-            description: `成功处理 ${validFiles.length} 个文件`,
+            title: "上传完成（部分失败）",
+            description: `成功: ${successCount} 个, 失败: ${failCount} 个\n失败文件: ${failedFiles.join(", ")}`,
+            variant: "destructive",
           })
+        } else {
+          toast({
+            title: "上传完成",
+            description: `所有 ${successCount} 个文件上传成功`,
+          })
+        }
+
+        // 刷新上传文件列表
+        if (selectedTaskId) {
+          await handleUploadMangeTabsPoint()
         }
       }
     },
-    [toast]
+    [selectedTaskId, toast],
   )
 
   // 拖拽处理
@@ -398,7 +365,7 @@ const FileUpload: React.FC = () => {
         handleFiles(e.dataTransfer.files)
       }
     },
-    [handleFiles]
+    [handleFiles],
   )
 
   // 文件输入处理
@@ -409,36 +376,43 @@ const FileUpload: React.FC = () => {
   }
 
   // 删除文件
-  const removeFile = (fileId: string) => {
-    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
-    dataService.deleteFile(fileId)
-    toast({
-      title: "文件已删除",
-      description: "文件已从列表中移除",
-    })
-  }
+  const removeFile = async (fileId: string) => {
+    if (!selectedTaskId) return
 
-  // 获取所有文件
-  React.useEffect(() => {
-    const updateFiles = () => {
-      const allFiles = dataService.getAllFiles()
-      setUploadedFiles(allFiles)
+    try {
+      const result = await deleteUploadFile(selectedTaskId, fileId)
+      if (result.success) {
+        toast({
+          title: "文件已删除",
+          description: "文件已从列表中移除",
+        })
+        // 刷新列表
+        handleUploadMangeTabsPoint()
+      } else {
+        toast({
+          title: "删除失败",
+          description: result.msg || "文件删除失败",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "删除失败",
+        description: "删除过程中发生错误",
+        variant: "destructive",
+      })
     }
-
-    updateFiles()
-    const interval = setInterval(updateFiles, 1000)
-    return () => clearInterval(interval)
-  }, [])
+  }
 
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case "completed":
+      case "downloaded":
         return "bg-green-500"
-      case "processing":
+      case "pending":
         return "bg-blue-500"
       case "error":
         return "bg-red-500"
-      case "uploading":
+      case "downloading":
         return "bg-yellow-500"
       default:
         return "bg-gray-500"
@@ -447,13 +421,261 @@ const FileUpload: React.FC = () => {
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      uploading: "上传中",
-      uploaded: "已上传",
-      processing: "处理中",
-      completed: "已完成",
+      downloading: "下载中",
+      pending: "待下载",
+      downloaded: "已下载",
       error: "错误",
     }
     return labels[status] || status
+  }
+
+  // 上传文件管理
+  const handleUploadMangeTabsPoint = async () => {
+    if (selectedTaskId) {
+      try {
+        const result = await getUploadFileInfo(selectedTaskId)
+        if (result.success) {
+          const sortedData = result.data.sort((a, b) => {
+            return (
+              new Date(b.upload_time).getTime() -
+              new Date(a.upload_time).getTime()
+            )
+          })
+          setUploadFilesInfo(sortedData)
+        } else {
+          toast({
+            title: "获取上传文件信息失败",
+            description: result.msg,
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        toast({
+          title: "获取上传文件信息失败",
+          description: "请求过程中发生错误",
+          variant: "destructive",
+        })
+      }
+    } else {
+      toast({
+        title: "请选择任务信息",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // excel文件上传
+  const handleExcelChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      const result = await parseExcel(file)
+      result.rows.map((r, i) => ({
+        ...r,
+        _rowId:
+          globalThis.crypto && "randomUUID" in globalThis.crypto
+            ? (globalThis.crypto as Crypto).randomUUID()
+            : `${Date.now()}-${Math.random()}-${i}`,
+      }))
+      setExcelData(result)
+
+      // 设置默认列和编码
+      setSelectedCol("地块编码")
+      const codes: Set<string> = new Set()
+      result.rows.map((item) => {
+        console.log(String(item["地块编码"]))
+        codes.add(String(item["地块编码"]))
+      })
+      setCodeArr([...codes])
+
+      toast({
+        title: "文件解析成功",
+        description: `成功解析 ${result.rows.length} 行数据`,
+      })
+    } catch (err) {
+      toast({
+        title: "文件解析失败",
+        description: "错误信息: " + err,
+        variant: "destructive",
+      })
+    }
+  }
+
+  // 全选切换
+  const toggleAll = () => {
+    if (checkAll) {
+      setSelectedAreaCodeArr([])
+      setCheckAll(false)
+    } else {
+      setSelectedAreaCodeArr(codeArr)
+      setCheckAll(true)
+    }
+  }
+
+  // 点击复选框时更新数组
+  const handleToggle = (value: string) => {
+    setSelectedAreaCodeArr((prev) =>
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value],
+    )
+  }
+
+  // 文件下载
+  const downloadFile = async () => {
+    if (selectedAreaCodeArr.length > 0) {
+      setDownloadTotal(selectedAreaCodeArr.length)
+      try {
+        const result = await addDownloadTask(
+          selectedAreaCodeArr,
+          selectedTaskId || "",
+        )
+        if (result.success) {
+          toast({
+            title: "添加后台下载任务成功",
+            description: `已添加 ${selectedAreaCodeArr.length} 个下载任务`,
+          })
+          // 切换到下载管理标签页
+          setActiveTab("manage")
+          // 刷新下载任务列表
+          setTimeout(() => {
+            handleMangeTabsPoint()
+          }, 500)
+        } else {
+          toast({
+            title: "添加后台下载任务失败",
+            description: result.msg,
+            variant: "destructive",
+          })
+        }
+      } catch (err: any) {
+        toast({
+          title: "请求出错",
+          description: err.message || "未知错误",
+          variant: "destructive",
+        })
+      }
+    } else {
+      toast({
+        title: "未选择地块编码",
+        description: "请选择要下载的地块编码",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const pollTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    // 只有在“下载管理”tab 且 已选择任务时才轮询
+    if (activeTab !== "manage" || !selectedTaskId) {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current)
+        pollTimerRef.current = null
+      }
+      return
+    }
+
+    // 立刻请求一次
+    handleMangeTabsPoint()
+
+    // 每 3s 轮询
+    pollTimerRef.current = window.setInterval(() => {
+      handleMangeTabsPoint()
+    }, 3000)
+
+    // 清理定时器
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current)
+        pollTimerRef.current = null
+      }
+    }
+  }, [activeTab, selectedTaskId])
+
+  // 下载重试
+  const retryError = async () => {
+    if (selectedTaskId) {
+      try {
+        const result = await retryErrorDownload(selectedTaskId)
+        if (result.success) {
+          toast({
+            title: "重试成功",
+            description: "已开始重新下载失败的任务",
+          })
+          handleMangeTabsPoint()
+        } else {
+          toast({
+            title: "重试失败",
+            description: result.msg,
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        toast({
+          title: "重试失败",
+          description: "请求过程中发生错误",
+          variant: "destructive",
+        })
+      }
+    } else {
+      toast({
+        title: "请先选择任务",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // 下载文件管理
+  const handleMangeTabsPoint = async () => {
+    if (selectedTaskId) {
+      try {
+        const result = await getDownloadTasksInfo(selectedTaskId)
+        if (result.success) {
+          const sortedData = result.data.sort((a, b) => {
+            return (
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+            )
+          })
+          setDownloadTasks(sortedData)
+
+          let errorCounts = 0
+          let successCounts = 0
+          setDownloadTotal(sortedData.length)
+
+          sortedData.forEach((task) => {
+            if (task.status === "error") {
+              errorCounts++
+            } else if (task.status === "downloaded") {
+              successCounts++
+            }
+          })
+
+          setDownloadCompleted(successCounts)
+          setDownloadError(errorCounts)
+          console.log(sortedData)
+        } else {
+          toast({
+            title: "获取下载任务信息失败",
+            description: result.msg,
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        toast({
+          title: "获取下载任务信息失败",
+          description: "请求过程中发生错误",
+          variant: "destructive",
+        })
+      }
+    } else {
+      toast({
+        title: "请先选择任务",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -469,11 +691,60 @@ const FileUpload: React.FC = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+        <Card className="border py-6 bg-white shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              处理任务选择
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={selectedTaskId || ""}
+              onValueChange={handleSelectTask}>
+              <SelectTrigger>
+                <SelectValue placeholder="选择任务" />
+              </SelectTrigger>
+              <SelectContent>
+                {tasks.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        {/* 任务状态卡片 */}
+        {selectedTaskId && (
+          <Card className="border py-4 bg-white shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                当前任务：{selectedTask?.name || selectedTaskId}
+                <Badge variant="secondary">{selectedTaskId}</Badge>
+              </CardTitle>
+              <CardDescription>
+                所有上传、下载和处理的文件都将保存到此任务目录下
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload">文件上传</TabsTrigger>
+            <TabsTrigger
+              onClick={handleUploadMangeTabsPoint}
+              value="upload-manage">
+              上传文件管理
+            </TabsTrigger>
             <TabsTrigger value="download">文件下载</TabsTrigger>
-            <TabsTrigger value="manage">文件管理</TabsTrigger>
+            <TabsTrigger onClick={handleMangeTabsPoint} value="manage">
+              下载管理
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="space-y-6">
@@ -537,18 +808,45 @@ const FileUpload: React.FC = () => {
                   </p>
                 </div>
               </CardContent>
+              {isUploading && (
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>上传进度</span>
+                      <span>
+                        第{" "}
+                        {Math.round((completedFileCounts / 100) * fileCounts)} /{" "}
+                        {fileCounts} 个文件
+                      </span>
+                    </div>
+                    <Progress value={completedFileCounts} />
+                  </div>
+                </CardContent>
+              )}
             </Card>
-
-            {/* 上传进度 */}
-            {isUploading && (
-              <Alert>
-                <Upload className="h-4 w-4" />
-                <AlertDescription>
-                  正在上传和处理文件，请稍候...
-                </AlertDescription>
-              </Alert>
-            )}
           </TabsContent>
+
+          <TabsContent value="upload-manage" className="space-y-6">
+            {/* 文件列表 */}
+            <Card className="bg-white shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    上传文件 ({uploadFilesInfo.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DataList
+                  data={uploadFilesInfo}
+                  columns={uploadFileTabColumns}
+                  onDelete={removeFile}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="download" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
               <Card className="bg-white shadow-lg">
@@ -571,38 +869,32 @@ const FileUpload: React.FC = () => {
                     <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p className="text-lg font-medium text-gray-900">
                       拖拽文件到此处上传
-                      {/* 支持的文件类型 */}
-                      <div className="mt-4">
-                        <p className="text-sm text-gray-600 mb-2">
-                          支持的文件类型：
-                          <Badge variant="outline">csv</Badge>
-                          <Badge variant="outline">Excel (xlsx)</Badge>
-                        </p>
-
-                        <p className="text-xs text-green-600 mt-2">
-                          文件大小小于10Mb
-                        </p>
-                      </div>
+                      <span className="block text-sm text-gray-600 mb-2">
+                        支持的文件类型：
+                        <Badge variant="outline">csv</Badge>
+                        <Badge variant="outline">Excel (xlsx)</Badge>
+                      </span>
+                      <span className="text-xs text-green-600 mt-2">
+                        文件大小小于10Mb
+                      </span>
                     </p>
 
                     <input
                       type="file"
-                      multiple
-                      accept=".xlsx,.cxv"
-                      onChange={handleFileInput}
+                      accept=".xlsx,.csv"
+                      onChange={handleExcelChange}
                       className="hidden"
-                      ref={fileInputRef}
+                      ref={excelFileInputRef}
                     />
                     <Button
                       variant="outline"
                       className="cursor-pointer"
                       disabled={isUploading}
-                      onClick={() => fileInputRef.current?.click()}>
+                      onClick={() => excelFileInputRef.current?.click()}>
                       {isUploading ? "上传中..." : "选择文件"}
                     </Button>
                   </div>
                 </CardContent>
-                {/* 上传进度 */}
                 {isUploading && (
                   <Alert>
                     <Upload className="h-4 w-4" />
@@ -610,174 +902,101 @@ const FileUpload: React.FC = () => {
                   </Alert>
                 )}
               </Card>
+
               <Card className="bg-white shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    文件预览与下载
+                    文件下载
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      文件筛选
-                    </label>
-                    <Select value={selectedCol} onValueChange={setSelectedCol}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择地块编码列名" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">所有文件</SelectItem>
-                        {colsName.map((col) => (
-                          <SelectItem key={col} value={col}>
-                            {col}
-                          </SelectItem>
+                <CardContent className="space-y-4">
+                  {codeArr.length > 0 ? (
+                    <>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Checkbox
+                          id="select-all"
+                          checked={checkAll}
+                          onCheckedChange={toggleAll}
+                        />
+                        <Label htmlFor="select-all" className="font-medium">
+                          全选 ({codeArr.length} 个地块)
+                        </Label>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[300px] overflow-y-auto p-2 border rounded">
+                        {codeArr.map((code) => (
+                          <div
+                            key={code}
+                            className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`code-${code}`}
+                              checked={selectedAreaCodeArr.includes(code)}
+                              onCheckedChange={() => handleToggle(code)}
+                            />
+                            <Label
+                              htmlFor={`code-${code}`}
+                              className="text-sm truncate">
+                              {code}
+                            </Label>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      </div>
+
+                      <div className="flex justify-end mt-4">
+                        <Button
+                          onClick={downloadFile}
+                          disabled={selectedAreaCodeArr.length === 0}>
+                          <Download className="mr-2 h-4 w-4" />
+                          下载 ({selectedAreaCodeArr.length})
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      请先上传台账表格文件
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
+
           <TabsContent value="manage" className="space-y-6">
-            {/* 文件列表 */}
+            {/* 下载任务列表 */}
             <Card className="bg-white shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
-                    文件列表 ({uploadedFiles.length})
+                    下载任务 ({downloadTasks.length})
                   </span>
-                  {uploadedFiles.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setUploadedFiles([])
-                        dataService.clearAll()
-                        toast({
-                          title: "已清空",
-                          description: "所有文件已清空",
-                        })
-                      }}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      清空所有
-                    </Button>
-                  )}
+                  <Button onClick={retryError} variant="outline" size="sm">
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    错误重新下载
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {uploadedFiles.length > 0 ? (
-                  <div className="space-y-4">
-                    {uploadedFiles.map((file) => {
-                      const processingStatus = dataService.getProcessingStatus(
-                        file.id
-                      )
+                <DataList
+                  data={downloadTasks}
+                  columns={downloadTaskTabColumns}
+                />
 
-                      return (
-                        <div key={file.id} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3 flex-1">
-                              {getFileIcon(file)}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">
-                                  {file.name}
-                                </p>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                  <span>{formatFileSize(file.size)}</span>
-                                  <Badge variant="outline">
-                                    {getFileTypeLabel(file.type)}
-                                  </Badge>
-                                  <span>
-                                    {new Date(file.uploadTime).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 ml-4">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${getStatusColor(
-                                    file.status
-                                  )}`}
-                                />
-                                <span className="text-sm font-medium">
-                                  {getStatusLabel(file.status)}
-                                </span>
-                              </div>
-
-                              {/* 预览按钮 - 只有在文件处理完成时才显示 */}
-                              {file.status === "judged" && file.parseResult && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handlePreview(file)}
-                                  title="预览解析结果">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              )}
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFile(file.id)}
-                                title="删除文件">
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-
-                          {/* 处理进度 */}
-                          {file.status === "processing" && processingStatus && (
-                            <div className="mt-3 space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span>{processingStatus.message}</span>
-                                <span>{processingStatus.progress}%</span>
-                              </div>
-                              <Progress
-                                value={processingStatus.progress}
-                                className="w-full"
-                              />
-                            </div>
-                          )}
-
-                          {/* 错误信息 */}
-                          {file.status === "error" && file.errorMessage && (
-                            <div className="mt-3">
-                              <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  {file.errorMessage}
-                                </AlertDescription>
-                              </Alert>
-                            </div>
-                          )}
-
-                          {/* 完成状态 */}
-                          {file.status === "judged" && (
-                            <div className="mt-3">
-                              <Alert>
-                                <CheckCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  文件处理完成，可以查看分析结果
-                                </AlertDescription>
-                              </Alert>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-2">
-                      暂无上传的文件
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      请先上传文件进行处理
-                    </p>
+                {/* 下载任务进度条 */}
+                {downloadTotal > 0 && (
+                  <div className="mt-6 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>下载进度</span>
+                      <span>
+                        已完成: {downloadCompleted} / 总计: {downloadTotal}
+                        {downloadError > 0 && ` (失败: ${downloadError})`}
+                      </span>
+                    </div>
+                    <ProgressBar
+                      total={downloadTotal}
+                      downloaded={downloadCompleted}
+                      error={downloadError}
+                    />
                   </div>
                 )}
               </CardContent>

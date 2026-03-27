@@ -22,6 +22,7 @@ export interface FileInfo {
   progress?: number
   errorMessage?: string
   parseResult?: DocumentParseResult // 添加解析结果
+  isProcessed?: boolean
 }
 
 // 处理阶段类型
@@ -69,15 +70,12 @@ export interface ExtractionRule {
   id: string
   name: string
   description: string
-  keywords: string[]
+  prompt: string // 改为提示词（一段话）
   sections?: string[]
-  pageRange?: {
-    start?: number
-    end?: number
-  }
   enabled: boolean
   createdAt: Date
   updatedAt: Date
+  title_exclude_keywords?: string[] // 12.30修改
 }
 
 // 判别规则
@@ -124,12 +122,15 @@ export interface ExtractionResult {
 export interface Task {
   id: string
   name: string
+  share: boolean
+  group_name?: string
   description?: string
+  province?: string
   extractionRules: ExtractionRule[]
   judgmentRules: JudgmentRule[]
-  createdBy: "admin" | "user"
+  createdBy?: string
   createdAt: Date
-  updatedAt: Date
+  updatedAt?: Date
   enabled: boolean
   fileCount?: number // 使用此任务处理的文件数量
 }

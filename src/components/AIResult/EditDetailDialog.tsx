@@ -1,0 +1,469 @@
+import React, { useEffect, useMemo, useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Document, Page, pdfjs } from "react-pdf"
+import "react-pdf/dist/Page/AnnotationLayer.css"
+import "react-pdf/dist/Page/TextLayer.css"
+import { updateDetail } from "@/api/aiResult"
+import { useToast } from "@/hooks/use-toast"
+
+// pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "/pdf.worker.min.mjs",
+  import.meta.url,
+).toString()
+
+export type ExtractedFieldItem = {
+  field_name: string
+  field_value: string
+  page_num: number // 后端原始页码：-1=未定位，0=PDF第一页
+}
+
+export type JudgedFiledItem = {
+  judged_name: string
+  judged_value: string
+}
+
+export type PageNumFieldItem = {
+  field_name: string
+  page_num: number
+}
+
+export type PDFDetailInfo = {
+  file_name: string
+  pdf_url: string
+  extracted_fields?: ExtractedFieldItem[]
+  judged_fields?: JudgedFiledItem[]
+}
+
+interface SubmitPayload {
+  task_id: string
+  file_name: string
+  extraction_result: Record<string, string>
+  judge_result: Record<string, string>
+  page_idx: Record<string, number>
+}
+
+interface FileDetailDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  loading?: boolean
+  detail: PDFDetailInfo | null
+  taskId: string
+  onSubmitEdit?: (payload: SubmitPayload) => Promise<void> | void
+}
+
+const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
+  open,
+  onOpenChange,
+  loading = false,
+  detail,
+  taskId,
+  onSubmitEdit,
+}) => {
+  const { toast } = useToast()
+  const [currentPdfPage, setCurrentPdfPage] = useState(1) // react-pdf 使用 1-based 页码
+  const [numPages, setNumPages] = useState(0)
+  const [editableFields, setEditableFields] = useState<ExtractedFieldItem[]>([])
+  const [editableJudgedFields, setEditableJudgedFields] = useState<
+    JudgedFiledItem[]
+  >([])
+  const [submitting, setSubmitting] = useState(false)
+
+  const token = localStorage.getItem("token") || ""
+
+  // 0324修改：后端页码(raw) -> PDF预览页码(viewer)
+  const rawPageToViewerPage = (rawPage: number | null | undefined) => {
+    if (rawPage === null || rawPage === undefined || rawPage < 0) return null
+    return rawPage + 1
+  }
+
+  // 0324修改：PDF显示页码(viewer) -> 后端存储页码(raw)
+  const viewerPageToRawPage = (viewerPage: number | null | undefined) => {
+    if (viewerPage === null || viewerPage === undefined || viewerPage <= 0)
+      return -1
+    return viewerPage - 1
+  }
+
+  useEffect(() => {
+    if (open) {
+      setCurrentPdfPage(1)
+      setNumPages(0)
+      setEditableFields(detail?.extracted_fields ?? [])
+      setEditableJudgedFields(detail?.judged_fields ?? [])
+    }
+  }, [open, detail])
+
+  const hasExtractedFields = useMemo(
+    () => editableFields.length > 0,
+    [editableFields],
+  )
+
+  const hasJudgedFields = useMemo(
+    () => editableJudgedFields.length > 0,
+    [editableJudgedFields],
+  )
+
+  const handleDialogChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setCurrentPdfPage(1)
+      setNumPages(0)
+      setEditableFields([])
+      setEditableJudgedFields([])
+      setSubmitting(false)
+    }
+    onOpenChange(nextOpen)
+  }
+
+  const handleLocateFieldPage = (rawPageNum: number) => {
+    const viewerPage = rawPageToViewerPage(rawPageNum)
+    if (viewerPage === null) return
+    setCurrentPdfPage(viewerPage)
+  }
+
+  const handleFieldValueChange = (index: number, value: string) => {
+    setEditableFields((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              field_value: value,
+            }
+          : item,
+      ),
+    )
+  }
+
+  // 0324修改：输入框显示给用户的是 1-based 页码，存回后端时减 1
+  const handlePageNumChange = (index: number, value: string) => {
+    const parsedViewerPage = Number(value)
+
+    setEditableFields((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              page_num: Number.isNaN(parsedViewerPage)
+                ? -1
+                : viewerPageToRawPage(Math.max(1, parsedViewerPage)),
+            }
+          : item,
+      ),
+    )
+  }
+
+  const handleJudgedValueChange = (index: number, value: string) => {
+    setEditableJudgedFields((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              judged_value: value,
+            }
+          : item,
+      ),
+    )
+  }
+
+  const buildExtractionResult = (fields: ExtractedFieldItem[]) => {
+    return fields.reduce<Record<string, string>>((acc, item) => {
+      acc[item.field_name] = item.field_value || ""
+      return acc
+    }, {})
+  }
+
+  const buildJudgeResult = (fields: JudgedFiledItem[]) => {
+    return fields.reduce<Record<string, string>>((acc, item) => {
+      acc[item.judged_name] = item.judged_value || ""
+      return acc
+    }, {})
+  }
+
+  // 0324修改：提交给后端时仍然传原始 raw page_idx
+  const buildPageNumResult = (fields: ExtractedFieldItem[]) => {
+    return fields.reduce<Record<string, number>>((acc, item) => {
+      acc[item.field_name] = item.page_num
+      return acc
+    }, {})
+  }
+
+  const handleSubmit = async () => {
+    if (!detail?.file_name || !taskId) return
+
+    try {
+      setSubmitting(true)
+
+      const payload: SubmitPayload = {
+        task_id: taskId,
+        file_name: detail.file_name,
+        extraction_result: buildExtractionResult(editableFields),
+        judge_result: buildJudgeResult(editableJudgedFields),
+        page_idx: buildPageNumResult(editableFields),
+      }
+
+      const updateResult = await updateDetail(
+        payload.file_name,
+        payload.task_id,
+        payload.extraction_result,
+        payload.judge_result,
+        payload.page_idx,
+      )
+
+      if (updateResult.success) {
+        toast({
+          title: updateResult.msg,
+        })
+      } else {
+        toast({
+          title: updateResult.msg,
+          variant: "destructive",
+        })
+      }
+
+      onOpenChange(false)
+    } catch (error) {
+      toast({
+        title: "提交修改失败",
+        variant: "destructive",
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleDialogChange}>
+      <DialogContent className="!w-[80vw] !max-w-[80vw] h-[90vh] p-0 overflow-hidden">
+        <div className="flex h-full min-h-0">
+          <div className="w-[58%] border-r bg-slate-50 flex flex-col min-h-0">
+            <DialogHeader className="px-6 py-4 border-b bg-white">
+              <DialogTitle className="flex items-center justify-between">
+                <span>PDF 预览</span>
+                {detail && (
+                  <span className="text-sm font-normal text-slate-500">
+                    {detail.file_name}
+                  </span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex items-center justify-between px-6 py-3 bg-white border-b">
+              <div className="text-sm text-slate-600">
+                第 {currentPdfPage} 页 / 共 {numPages || "-"} 页
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPdfPage <= 1}
+                  onClick={() =>
+                    setCurrentPdfPage((prev) => Math.max(prev - 1, 1))
+                  }>
+                  上一页
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={numPages === 0 || currentPdfPage >= numPages}
+                  onClick={() =>
+                    setCurrentPdfPage((prev) =>
+                      numPages ? Math.min(prev + 1, numPages) : prev,
+                    )
+                  }>
+                  下一页
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+              <div className="flex justify-center">
+                {loading ? (
+                  <div className="text-sm text-slate-500">详情加载中...</div>
+                ) : detail?.pdf_url ? (
+                  <Document
+                    file={{
+                      url: detail.pdf_url,
+                    }}
+                    options={{
+                      httpHeaders: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                      withCredentials: true,
+                    }}
+                    onLoadSuccess={({ numPages }) => {
+                      setNumPages(numPages)
+                      if (currentPdfPage > numPages) {
+                        setCurrentPdfPage(1)
+                      }
+                    }}
+                    loading={
+                      <div className="text-sm text-slate-500">
+                        PDF 加载中...
+                      </div>
+                    }
+                    error={
+                      <div className="text-sm text-red-500">PDF 加载失败</div>
+                    }>
+                    <Page
+                      pageNumber={currentPdfPage}
+                      width={700}
+                      renderTextLayer
+                      renderAnnotationLayer
+                    />
+                  </Document>
+                ) : (
+                  <div className="text-sm text-slate-500">暂无 PDF</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="w-[42%] flex flex-col bg-white min-h-0">
+            <DialogHeader className="px-6 py-4 border-b">
+              <DialogTitle>提取内容信息</DialogTitle>
+            </DialogHeader>
+
+            <ScrollArea className="flex-1 min-h-0 px-6 py-4">
+              {loading ? (
+                <div className="text-sm text-slate-500">内容加载中...</div>
+              ) : (
+                <div className="space-y-6">
+                  <div>
+                    <div className="mb-3 text-sm font-semibold text-slate-800">
+                      提取字段
+                    </div>
+
+                    {hasExtractedFields ? (
+                      <div className="space-y-4">
+                        {editableFields.map((item, index) => {
+                          const viewerPage = rawPageToViewerPage(item.page_num)
+                          const isActive =
+                            viewerPage !== null && currentPdfPage === viewerPage
+
+                          return (
+                            <div
+                              key={`${item.field_name}-${index}`}
+                              onClick={() =>
+                                handleLocateFieldPage(item.page_num)
+                              }
+                              className={`cursor-pointer rounded-xl border p-4 transition-all duration-200
+                                ${
+                                  isActive
+                                    ? "border-blue-500 bg-blue-50 shadow-sm"
+                                    : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-sm active:scale-[0.99]"
+                                }`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="text-left text-sm font-semibold text-blue-600">
+                                  {item.field_name}
+                                </div>
+
+                                <div
+                                  className="flex items-center gap-2"
+                                  onClick={(e) => e.stopPropagation()}>
+                                  <span className="text-xs text-slate-500">
+                                    页码
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={viewerPage ?? ""}
+                                    onChange={(e) =>
+                                      handlePageNumChange(index, e.target.value)
+                                    }
+                                    className="h-8 w-20"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                                <span className="pt-2 text-slate-500">
+                                  提取结果
+                                </span>
+                                <textarea
+                                  value={item.field_value || ""}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) =>
+                                    handleFieldValueChange(
+                                      index,
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="min-h-[88px] w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white"
+                                  placeholder="请输入提取结果"
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">暂无提取内容</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="mb-3 text-sm font-semibold text-slate-800">
+                      判别结果
+                    </div>
+
+                    {hasJudgedFields ? (
+                      <div className="space-y-4">
+                        {editableJudgedFields.map((item, index) => (
+                          <div
+                            key={`${item.judged_name}-${index}`}
+                            className="rounded-xl border border-slate-200 p-4 transition hover:shadow-sm">
+                            <div className="text-sm font-semibold text-slate-700">
+                              {item.judged_name}
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                              <span className="pt-2 text-slate-500">
+                                判别结果
+                              </span>
+                              <textarea
+                                value={item.judged_value || ""}
+                                onChange={(e) =>
+                                  handleJudgedValueChange(index, e.target.value)
+                                }
+                                className="min-h-[72px] w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white"
+                                placeholder="请输入判别结果"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-slate-500">暂无判别结果</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </ScrollArea>
+
+            <div className="flex items-center justify-end gap-3 border-t px-6 py-4">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                取消
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={loading || submitting || !detail || !taskId}>
+                {submitting ? "提交中..." : "提交修改"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export default EditDetailDialog
