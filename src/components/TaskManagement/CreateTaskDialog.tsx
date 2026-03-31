@@ -30,7 +30,12 @@ import {
 import type { Task, ExtractionRule, JudgmentRule } from "@/types"
 import { useUserStore } from "@/context/userStore"
 import { Switch } from "@/components/ui/switch"
-
+// 添加知识库
+type KnowledgeBaseOption = "none" | "industry_category"
+type JudgmentRuleExt = JudgmentRule & {
+  knowledgeBase?: KnowledgeBaseOption
+  sourceFields?: string[]
+}
 // 12.30修改：为提取规则扩展 title 排除关键词字段（仅在本组件内扩展，避免全局改动 types）
 type ExtractionRuleExt = ExtractionRule & {
   /** 仅在 title 匹配章节时生效：当 title 包含任一关键词时跳过该 title 命中 */
@@ -40,8 +45,6 @@ type ExtractionRuleExt = ExtractionRule & {
 import { dataService } from "@/services/dataService"
 import { useToast } from "@/hooks/use-toast"
 import { addTask, updateTaskByID } from "@/api/dashboard"
-
-// 0317修改：新增省份下拉选项，任务创建时显式配置所属省份
 const PROVINCE_OPTIONS = [
   "北京市",
   "天津市",
@@ -96,8 +99,8 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
 }) => {
   const [open, setOpen] = useState(false)
   const [taskName, setTaskName] = useState("")
+  const [province, setProvince] = useState("")
   const [taskDescription, setTaskDescription] = useState("")
-  const [province, setProvince] = useState("") // 0317修改：新增任务所属省份
   const { toast } = useToast()
   // 是否共享
   const [shareMode, setShareMode] = useState(false)
@@ -128,7 +131,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       id: `rule-${Date.now()}`,
       name: "",
       description: "",
-      prompt: "",
+      prompt: "", // 默认不使用知识库
       sections: [],
       title_exclude_keywords: [], // 12.30修改
       enabled: true,
@@ -138,7 +141,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   ])
 
   // 判别规则状态
-  const [judgmentRules, setJudgmentRules] = useState<JudgmentRule[]>([
+  const [judgmentRules, setJudgmentRules] = useState<JudgmentRuleExt[]>([
     {
       id: `judge-${Date.now()}`,
       name: "",
@@ -146,6 +149,9 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       type: "compliance",
       conditions: [],
       actions: [],
+      // 添加知识库
+      knowledgeBase: "none", // 默认值
+      sourceFields: [], // 新增字段
       enabled: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -240,6 +246,9 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
         name: "",
         description: "",
         type: "compliance",
+        // 添加知识库
+        knowledgeBase: "none", // 默认不使用知识库
+        sourceFields: [], // 新增字段
         conditions: [],
         actions: [],
         enabled: true,
@@ -345,7 +354,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       })
       return false
     }
-
     if (!province.trim()) {
       // 0317修改：省份必填，避免后续统计页高亮失败
       toast({
@@ -355,7 +363,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       })
       return false
     }
-
     // 验证提取规则
     const validExtractionRules = extractionRules.filter(
       (rule) => rule.name.trim() && rule.prompt.trim(),
@@ -407,7 +414,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       updatedAt: new Date(),
       enabled: true,
     } as Task
-
     // 保存到数据服务
     addTask(newTask).then((result) => {
       if (result.success) {
@@ -435,7 +441,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
         // 重置表单
         setTaskName("")
         setTaskDescription("")
-        setProvince("") // 0317修改：重置省份
         setExtractionRules([
           {
             id: `rule-${Date.now()}`,
@@ -455,6 +460,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
             name: "",
             description: "",
             type: "compliance",
+            knowledgeBase: "none",
             conditions: [],
             actions: [],
             enabled: true,
@@ -490,7 +496,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       id: task_id,
       name: taskName.trim(),
       share: shareMode,
-      province: province.trim(), // 0317修改：更新任务时同步更新所属省份
+      province: province.trim(),
       description: taskDescription.trim(),
       extractionRules: validExtractionRules,
       judgmentRules: validJudgmentRules,
@@ -547,7 +553,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                 className="mt-1"
               />
             </div>
-
             <div>
               <Label htmlFor="province">所属省份 *</Label>
               <Select value={province} onValueChange={setProvince}>
@@ -563,7 +568,6 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                 </SelectContent>
               </Select>
             </div>
-
             <div>
               <Label htmlFor="taskDescription">任务描述</Label>
               <Textarea
@@ -800,6 +804,84 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                         className="mt-1"
                       />
                     </div>
+                    {/* 新增知识库选项 */}
+                    <div>
+                      <Label>知识库支持</Label>
+                      <Select
+                        value={rule.knowledgeBase || "none"}
+                        onValueChange={(value) =>
+                          updateJudgmentRule(
+                            ruleIndex,
+                            "knowledgeBase",
+                            value as KnowledgeBaseOption,
+                          )
+                        }>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">不使用</SelectItem>
+                          <SelectItem value="industry_category">
+                            国民经济行业类别
+                          </SelectItem>
+                          <SelectItem value="landuse_type">用地类型</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* 条件渲染：仅当选择知识库时显示 sourceField */}
+                    {rule.knowledgeBase && rule.knowledgeBase !== "none" && (
+                      <div>
+                        <Label>关联提取规则</Label>
+                        <div className="mt-1 space-y-2">
+                          {extractionRules.map((extractionRule) => (
+                            <div
+                              key={extractionRule.id}
+                              className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`${extractionRule.id}-${ruleIndex}`}
+                                checked={
+                                  rule.sourceFields?.includes(
+                                    extractionRule.name,
+                                  ) || false
+                                }
+                                onChange={(e) => {
+                                  const isChecked = e.target.checked
+                                  const currentSourceFields =
+                                    rule.sourceFields || []
+                                  let newSourceFields: string[]
+
+                                  if (isChecked) {
+                                    // 添加提取规则的名称到数组
+                                    newSourceFields = [
+                                      ...currentSourceFields,
+                                      extractionRule.name,
+                                    ]
+                                  } else {
+                                    // 从数组中移除提取规则的名称
+                                    newSourceFields =
+                                      currentSourceFields.filter(
+                                        (name) => name !== extractionRule.name,
+                                      )
+                                  }
+
+                                  updateJudgmentRule(
+                                    ruleIndex,
+                                    "sourceFields",
+                                    newSourceFields,
+                                  )
+                                }}
+                              />
+                              <Label
+                                htmlFor={`${extractionRule.id}-${ruleIndex}`}
+                                className="ml-2">
+                                {extractionRule.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <Label>判别类型</Label>
                       <Select
