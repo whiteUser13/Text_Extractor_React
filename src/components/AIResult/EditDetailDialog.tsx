@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -36,13 +37,24 @@ export type PageNumFieldItem = {
   page_num: number
 }
 
+// export type PDFDetailInfo = {
+//   file_name: string
+//   pdf_url: string
+//   extracted_fields?: ExtractedFieldItem[]
+//   judged_fields?: JudgedFiledItem[]
+// }
+export type AIExtractedFieldItem = {
+  extract_name: string
+  extract_value: string
+}
 export type PDFDetailInfo = {
   file_name: string
   pdf_url: string
   extracted_fields?: ExtractedFieldItem[]
+  ai_extracted_fields?: AIExtractedFieldItem[]
   judged_fields?: JudgedFiledItem[]
+  ai_judged_fields?: JudgedFiledItem[]
 }
-
 interface SubmitPayload {
   task_id: string
   file_name: string
@@ -348,7 +360,13 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
                           const viewerPage = rawPageToViewerPage(item.page_num)
                           const isActive =
                             viewerPage !== null && currentPdfPage === viewerPage
-
+                          const matchedAIField =
+                            detail?.ai_extracted_fields?.find(
+                              (el) => el.extract_name === item.field_name,
+                            )
+                          const hasDifference =
+                            matchedAIField &&
+                            matchedAIField.extract_value !== item.field_value
                           return (
                             <div
                               key={`${item.field_name}-${index}`}
@@ -385,9 +403,20 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
                               </div>
 
                               <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
-                                <span className="pt-2 text-slate-500">
-                                  提取结果
-                                </span>
+                                <div>
+                                  <span className="pt-2 text-slate-500">
+                                    提取结果
+                                  </span>
+                                  <span>
+                                    {hasDifference ? (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs">
+                                        已复核
+                                      </Badge>
+                                    ) : null}
+                                  </span>
+                                </div>
                                 <textarea
                                   value={item.field_value || ""}
                                   onClick={(e) => e.stopPropagation()}
@@ -397,10 +426,21 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
                                       e.target.value,
                                     )
                                   }
-                                  className="min-h-[88px] w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white"
+                                  className="min-h-[88px] w-full rounded-lg border border-slate-200 bg-blue-100 p-3 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white"
                                   placeholder="请输入提取结果"
                                 />
                               </div>
+                              {hasDifference && (
+                                <div className="mt-5 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                                  <div className="text-slate-500">
+                                    <span>AI提取结果</span>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-50 p-3 text-slate-700 overflow-wrap-break-word whitespace-normal border border-blue-100">
+                                    {matchedAIField?.extract_value ||
+                                      "暂无AI提取结果"}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -417,29 +457,62 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
 
                     {hasJudgedFields ? (
                       <div className="space-y-4">
-                        {editableJudgedFields.map((item, index) => (
-                          <div
-                            key={`${item.judged_name}-${index}`}
-                            className="rounded-xl border border-slate-200 p-4 transition hover:shadow-sm">
-                            <div className="text-sm font-semibold text-slate-700">
-                              {item.judged_name}
-                            </div>
+                        {editableJudgedFields.map((item, index) => {
+                          const matchedAIField = detail?.ai_judged_fields?.find(
+                            (el) => el.judged_name === item.judged_name,
+                          )
+                          const hasDifference =
+                            matchedAIField &&
+                            matchedAIField.judged_value !== item.judged_value
+                          return (
+                            <div
+                              key={`${item.judged_name}-${index}`}
+                              className="rounded-xl border border-slate-200 p-4 transition hover:shadow-sm">
+                              <div className="text-sm font-semibold text-slate-700">
+                                {item.judged_name}
+                              </div>
 
-                            <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
-                              <span className="pt-2 text-slate-500">
-                                判别结果
-                              </span>
-                              <textarea
-                                value={item.judged_value || ""}
-                                onChange={(e) =>
-                                  handleJudgedValueChange(index, e.target.value)
-                                }
-                                className="min-h-[72px] w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white"
-                                placeholder="请输入判别结果"
-                              />
+                              <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                                <div>
+                                  <span>
+                                    <span className="text-slate-500">
+                                      判别结果
+                                    </span>
+                                    {hasDifference ? (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-xs">
+                                        已复核
+                                      </Badge>
+                                    ) : null}
+                                  </span>
+                                </div>
+                                <textarea
+                                  value={item.judged_value || ""}
+                                  onChange={(e) =>
+                                    handleJudgedValueChange(
+                                      index,
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="min-h-[72px] w-full rounded-lg border border-slate-200 bg-blue-100 p-3 text-slate-700 outline-none transition focus:border-blue-400 focus:bg-white"
+                                  placeholder="请输入判别结果"
+                                />
+                              </div>
+                              {hasDifference && (
+                                <div className="mt-5 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                                  <div className="text-slate-500">
+                                    <span>AI提取结果</span>
+                                  </div>
+                                  <div className="rounded-lg bg-slate-50 p-3 text-slate-700 overflow-wrap-break-word whitespace-normal border border-blue-100">
+                                    {matchedAIField?.judged_value ||
+                                      "暂无AI判别结果"}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     ) : (
                       <div className="text-sm text-slate-500">暂无判别结果</div>

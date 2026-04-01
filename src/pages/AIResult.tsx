@@ -286,20 +286,36 @@ const AIResult: React.FC = () => {
         const detail = {
           file_name: details.data.file_name,
           extracted_fields: details.data.extraction_result || {},
+          ai_extracted_fields: details.data.ai_extraction_results || {},
           page_idx: details.data.page_idx || {},
           judge_result: details.data.judge_result || {},
+          ai_judged_fields: details.data.ai_judged_results || {},
         }
         const pdfDetail: PDFDetailInfo = {
           file_name: details.data.file_name,
           pdf_url: "",
           extracted_fields: [],
+          ai_extracted_fields: [],
           judged_fields: [],
+          ai_judged_fields: [],
         }
         Object.keys(detail.extracted_fields).forEach((el) => {
           pdfDetail.extracted_fields?.push({
             field_name: el,
             field_value: detail.extracted_fields[el],
             page_num: detail.page_idx[el],
+          })
+        })
+        Object.keys(detail.ai_extracted_fields).forEach((el) => {
+          pdfDetail.ai_extracted_fields?.push({
+            extract_name: el,
+            extract_value: detail.ai_extracted_fields[el],
+          })
+        })
+        Object.keys(detail.ai_judged_fields).forEach((el) => {
+          pdfDetail.ai_judged_fields?.push({
+            judged_name: el,
+            judged_value: detail.ai_judged_fields[el],
           })
         })
         Object.keys(detail.judge_result).forEach((el) => {

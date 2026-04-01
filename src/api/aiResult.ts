@@ -1,3 +1,4 @@
+import { AirVent } from "lucide-react"
 import apiClient from "./index"
 
 export interface PDFFileInfo {
@@ -9,8 +10,10 @@ export interface PDFFileInfo {
 export interface PDFFileDetails {
   file_name: string
   extraction_result: Record<string, string>
+  ai_extraction_results: Record<string, string>
   page_idx: Record<string, number>
   judge_result: Record<string, string>
+  ai_judged_results: Record<string, string>
 }
 interface DetailResult {
   success: boolean
@@ -75,8 +78,10 @@ export async function getFileDetailsByName(
       const pdfDetail = {
         file_name: "",
         extraction_result: {},
+        ai_extraction_results: {},
         page_idx: {},
         judge_result: {},
+        ai_judged_results: {},
       }
       return { success: false, data: pdfDetail, msg: "获取失败" }
     }
@@ -84,8 +89,10 @@ export async function getFileDetailsByName(
     const pdfDetail = {
       file_name: "",
       extraction_result: {},
+      ai_extraction_results: {},
       page_idx: {},
       judge_result: {},
+      ai_judged_results: {},
     }
     return {
       success: false,

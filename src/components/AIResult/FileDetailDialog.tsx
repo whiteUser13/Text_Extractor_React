@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Document, Page, pdfjs } from "react-pdf"
 import "react-pdf/dist/Page/AnnotationLayer.css"
@@ -23,6 +24,10 @@ export type ExtractedFieldItem = {
   field_value: string
   page_num: number // 后端原始页码：-1=未定位，0=PDF第一页
 }
+export type AIExtractedFieldItem = {
+  extract_name: string
+  extract_value: string
+}
 export type JudgedFiledItem = {
   judged_name: string
   judged_value: string
@@ -32,7 +37,9 @@ export type PDFDetailInfo = {
   file_name: string
   pdf_url: string
   extracted_fields?: ExtractedFieldItem[]
+  ai_extracted_fields?: AIExtractedFieldItem[]
   judged_fields?: JudgedFiledItem[]
+  ai_judged_fields?: JudgedFiledItem[]
 }
 
 interface FileDetailDialogProps {
@@ -199,7 +206,12 @@ const FileDetailDialog: React.FC<FileDetailDialogProps> = ({
                   <div className="space-y-4">
                     {detail.extracted_fields.map((item, index) => {
                       const viewerPage = rawPageToViewerPage(item.page_num)
-
+                      const matchedAIField = detail.ai_extracted_fields?.find(
+                        (el) => el.extract_name === item.field_name,
+                      )
+                      const hasDifference =
+                        matchedAIField &&
+                        matchedAIField.extract_value !== item.field_value
                       return (
                         <div
                           key={`${item.field_name}-${index}`}
@@ -218,11 +230,33 @@ const FileDetailDialog: React.FC<FileDetailDialogProps> = ({
                           </div>
 
                           <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
-                            <span className="text-slate-500">提取结果</span>
-                            <div className="rounded-lg bg-slate-50 p-3 text-slate-700 break-words whitespace-pre-wrap">
+                            <div>
+                              <span className="text-slate-500">提取结果</span>
+                              <span>
+                                {hasDifference ? (
+                                  <Badge
+                                    variant="destructive"
+                                    className="text-xs">
+                                    已复核
+                                  </Badge>
+                                ) : null}
+                              </span>
+                            </div>
+                            <div className="rounded-lg bg-blue-100 p-3 text-slate-700 break-words whitespace-pre-wrap">
                               {item.field_value || "暂无提取结果"}
                             </div>
                           </div>
+                          {hasDifference && (
+                            <div className="mt-5 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                              <div className="text-slate-500">
+                                <span>AI提取结果</span>
+                              </div>
+                              <div className="rounded-lg bg-slate-50 p-3 text-slate-700 overflow-wrap-break-word whitespace-normal border border-blue-100">
+                                {matchedAIField?.extract_value ||
+                                  "暂无AI提取结果"}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -234,24 +268,54 @@ const FileDetailDialog: React.FC<FileDetailDialogProps> = ({
                 <div className="text-sm text-slate-500">判别信息加载中...</div>
               ) : detail?.judged_fields?.length ? (
                 <div className="space-y-4">
-                  {detail.judged_fields.map((item, index) => (
-                    <div
-                      key={`${item.judged_name}-${index}`}
-                      className="rounded-xl border border-slate-200 p-4 hover:shadow-sm transition">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="text-left text-sm font-semibold text-slate-800">
-                          {item.judged_name}
+                  {detail.judged_fields.map((item, index) => {
+                    const matchedAIField = detail.ai_judged_fields?.find(
+                      (el) => el.judged_name === item.judged_name,
+                    )
+                    const hasDifference =
+                      matchedAIField &&
+                      matchedAIField.judged_value !== item.judged_value
+                    return (
+                      <div
+                        key={`${item.judged_name}-${index}`}
+                        className="rounded-xl border border-slate-200 p-4 hover:shadow-sm transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="text-left text-sm font-semibold text-slate-800">
+                            {item.judged_name}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
-                        <span className="text-slate-500">判别结果</span>
-                        <div className="rounded-lg bg-slate-50 p-3 text-slate-700 break-words whitespace-pre-wrap max-h-[220px] overflow-auto">
-                          {formatValue(item.judged_value) || "暂无判别结果"}
+                        <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                          <div>
+                            <span>
+                              <span className="text-slate-500">判别结果</span>
+                              {hasDifference ? (
+                                <Badge
+                                  variant="destructive"
+                                  className="text-xs">
+                                  已复核
+                                </Badge>
+                              ) : null}
+                            </span>
+                          </div>
+
+                          <div className="rounded-lg bg-blue-100 p-3 text-slate-700 break-words whitespace-pre-wrap max-h-[220px] overflow-auto">
+                            {formatValue(item.judged_value) || "暂无判别结果"}
+                          </div>
                         </div>
+                        {hasDifference && (
+                          <div className="mt-5 grid grid-cols-[80px_1fr] gap-2 text-sm">
+                            <div className="text-slate-500">
+                              <span>AI提取结果</span>
+                            </div>
+                            <div className="rounded-lg bg-slate-50 p-3 text-slate-700 overflow-wrap-break-word whitespace-normal border border-blue-100">
+                              {matchedAIField?.judged_value || "暂无AI判别结果"}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-sm text-slate-500">
