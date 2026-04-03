@@ -27,6 +27,7 @@ import FileDetailDialog, {
 } from "@/components/AIResult/FileDetailDialog"
 import EditDetailDialog from "@/components/AIResult/EditDetailDialog"
 import ChinaEChartsMap from "@/components/AIResult/ChinaEChartsMap"
+import AIStatisticsPanel from "@/components/AIResult/AIStatisticsPanel"
 
 import {
   getTaskStatistics,
@@ -841,6 +842,7 @@ const AIResult: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+            <AIStatisticsPanel task_id={selectedTaskId} />
           </TabsContent>
 
           <TabsContent value="statistic" className="space-y-6">
