@@ -112,7 +112,7 @@ apiClient.interceptors.response.use(
         // redirectToOAuthLogin()
         // return new Promise(() => {})
       } else if (status === 403) {
-        alert("你没有此系统使用权限，请联系管理员")
+        // alert("你没有此系统使用权限，请联系管理员")
         // const access_token = localStorage.getItem("access_token")
         // console.log(access_token)
         // // 2. 先清除用户状态（让界面立即响应）

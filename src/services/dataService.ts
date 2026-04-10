@@ -1,3 +1,4 @@
+// services/dataService.ts
 import type {
   FileInfo,
   ProcessingStatus,
@@ -20,26 +21,42 @@ class DataService {
   private readonly EXTRACTION_RESULTS_STORAGE_KEY = "extraction_results"
   private readonly JUDGMENT_RESULTS_STORAGE_KEY = "judgment_results"
   private readonly PARSE_RESULTS_STORAGE_KEY = "parse_results"
+  private readonly SCENES_STORAGE_KEY = "scenes"
 
   constructor() {
     this.initializeDefaultRules()
+    this.initializeDefaultScenes()
+  }
+
+  // 初始化默认场景
+  private initializeDefaultScenes() {
+    const existingScenes = this.getFromStorage<any[]>(this.SCENES_STORAGE_KEY)
+    if (!existingScenes || existingScenes.length === 0) {
+      const defaultScenes = [
+        {
+          id: "default",
+          name: "默认场景",
+          description: "默认任务管理场景",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ]
+      this.saveToStorage(this.SCENES_STORAGE_KEY, defaultScenes)
+    }
   }
 
   // 初始化默认规则
   private initializeDefaultRules() {
-    // 检查是否已有数据，如果没有则初始化默认规则
     const existingExtractionRules = this.getAllExtractionRules()
     const existingJudgmentRules = this.getAllJudgmentRules()
 
     if (existingExtractionRules.length === 0) {
-      // 默认提取规则
       const defaultExtractionRules: ExtractionRule[] = [
         {
           id: "rule-1",
           name: "地块基本信息提取",
           description: "提取地块编号、位置、面积等基本信息",
-          prompt:
-            "请从文档中提取地块编号、地块位置、地块面积、土地性质等基本信息",
+          prompt: "请从文档中提取地块编号、地块位置、地块面积、土地性质等基本信息",
           sections: ["基本信息", "地块概况"],
           enabled: true,
           createdAt: new Date(),
@@ -71,7 +88,6 @@ class DataService {
     }
 
     if (existingJudgmentRules.length === 0) {
-      // 默认判别规则
       const defaultJudgmentRules: JudgmentRule[] = [
         {
           id: "judge-1",
@@ -106,10 +122,88 @@ class DataService {
     }
   }
 
-  // 任务管理 - 使用 localStorage
+  // 场景管理方法
+  getAllScenes(): any[] {
+    const scenes = this.getFromStorage<any[]>(this.SCENES_STORAGE_KEY) || []
+    return scenes.map(scene => ({
+      ...scene,
+      createdAt: new Date(scene.createdAt),
+      updatedAt: new Date(scene.updatedAt),
+    }))
+  }
+
+  getScene(id: string): any | undefined {
+    return this.getAllScenes().find(scene => scene.id === id)
+  }
+
+  createScene(scene: Omit<any, "id" | "createdAt" | "updatedAt">): any {
+    const scenes = this.getAllScenes()
+    
+    // 生成简短的唯一场景ID：8位随机字符串（字母+数字）
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let sceneId = ''
+    for (let i = 0; i < 8; i++) {
+      sceneId += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    
+    const newScene = {
+      ...scene,
+      id: sceneId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    scenes.push(newScene)
+    this.saveToStorage(this.SCENES_STORAGE_KEY, scenes)
+    return newScene
+  }
+
+  updateScene(id: string, updates: Partial<any>): any | null {
+    const scenes = this.getAllScenes()
+    const index = scenes.findIndex(s => s.id === id)
+    if (index === -1) return null
+    
+    scenes[index] = {
+      ...scenes[index],
+      ...updates,
+      updatedAt: new Date(),
+    }
+    this.saveToStorage(this.SCENES_STORAGE_KEY, scenes)
+    return scenes[index]
+  }
+
+  deleteScene(id: string): boolean {
+    const scenes = this.getAllScenes()
+    if (scenes.length <= 1) return false
+    
+    const filtered = scenes.filter(s => s.id !== id)
+    this.saveToStorage(this.SCENES_STORAGE_KEY, filtered)
+    
+    const tasks = this.getAllTasks()
+    tasks.forEach(task => {
+      if (task.sceneId === id) {
+        this.deleteTask(task.id)
+      }
+    })
+    
+    return true
+  }
+
+  getSceneStats(sceneId: string) {
+    const tasks = this.getTasksByScene(sceneId)
+    return {
+      totalTasks: tasks.length,
+      activeTasks: tasks.filter(t => t.enabled).length,
+    }
+  }
+
+  getTasksByScene(sceneId: string): Task[] {
+    const allTasks = this.getAllTasks()
+    return allTasks.filter(task => task.sceneId === sceneId)
+  }
+
+  // 任务管理
   addTask(task: Task): void {
     const allTasks = this.getFromStorage<Task[]>(this.TASKS_STORAGE_KEY) || []
-    //
     if (!allTasks.some((item: any) => item.id === task.id)) {
       allTasks.push(task)
       localStorage.setItem(this.TASKS_STORAGE_KEY, JSON.stringify(allTasks))
@@ -125,7 +219,6 @@ class DataService {
         ...updates,
       }
       console.log(tasks[taskIndex])
-
       this.saveToStorage(this.TASKS_STORAGE_KEY, tasks)
     }
   }
@@ -141,12 +234,9 @@ class DataService {
 
   getAllTasks(): Task[] {
     const tasks = this.getFromStorage<Task[]>(this.TASKS_STORAGE_KEY) || []
-
-    // 确保日期对象正确转换
     return tasks.map((task) => ({
       ...task,
       createdAt: new Date(task.createdAt),
-      // updatedAt: new Date(task.updatedAt),
       extractionRules:
         task.extractionRules?.map((rule) => ({
           ...rule,
@@ -161,6 +251,7 @@ class DataService {
         })) || [],
     }))
   }
+
   getAllTasksId(): string[] {
     const tasks = this.getFromStorage<Task[]>(this.TASKS_STORAGE_KEY) || []
     return tasks.map((task) => task.id)
@@ -170,13 +261,12 @@ class DataService {
     return this.getAllTasks().filter((task) => task.enabled)
   }
 
-  // 文件管理 - 使用 localStorage
+  // 文件管理
   addFile(file: FileInfo): void {
     const files = this.getAllFiles()
     files.push(file)
     this.saveToStorage(this.FILES_STORAGE_KEY, files)
 
-    // 初始化处理状态
     const statuses = this.getAllProcessingStatus()
     statuses[file.id] = {
       stage: "upload",
@@ -192,7 +282,6 @@ class DataService {
 
   getAllFiles(): FileInfo[] {
     const files = this.getFromStorage<FileInfo[]>(this.FILES_STORAGE_KEY) || []
-    // 确保日期对象正确转换
     return files.map((file) => ({
       ...file,
       uploadTime: new Date(file.uploadTime),
@@ -209,11 +298,9 @@ class DataService {
   }
 
   deleteFile(id: string): void {
-    // 删除文件
     const files = this.getAllFiles().filter((file) => file.id !== id)
     this.saveToStorage(this.FILES_STORAGE_KEY, files)
 
-    // 删除相关状态和结果
     const statuses = this.getAllProcessingStatus()
     delete statuses[id]
     this.saveToStorage(this.PROCESSING_STATUS_STORAGE_KEY, statuses)
@@ -346,7 +433,7 @@ class DataService {
 
   getExtractionResults(fileId: string): ExtractionResult[] {
     const results = this.getAllExtractionResults()
-    return results[fileId] || [] // 修复：使用 fileId 而不是 fileName
+    return results[fileId] || []
   }
 
   private getAllExtractionResults(): Record<string, ExtractionResult[]> {
@@ -354,7 +441,6 @@ class DataService {
       this.getFromStorage<Record<string, ExtractionResult[]>>(
         this.EXTRACTION_RESULTS_STORAGE_KEY
       ) || {}
-    // 转换日期对象
     Object.keys(results).forEach((fileId) => {
       results[fileId] = results[fileId].map((result) => ({
         ...result,
@@ -379,7 +465,7 @@ class DataService {
 
   getJudgmentResults(fileId: string): JudgmentResult[] {
     const results = this.getAllJudgmentResults()
-    return results[fileId] || [] // 修复：使用 fileId 而不是 fileName
+    return results[fileId] || []
   }
 
   private getAllJudgmentResults(): Record<string, JudgmentResult[]> {
@@ -387,7 +473,6 @@ class DataService {
       this.getFromStorage<Record<string, JudgmentResult[]>>(
         this.JUDGMENT_RESULTS_STORAGE_KEY
       ) || {}
-    // 转换日期对象
     Object.keys(results).forEach((fileId) => {
       results[fileId] = results[fileId].map((result) => ({
         ...result,
@@ -417,7 +502,6 @@ class DataService {
       this.getFromStorage<Record<string, DocumentParseResult>>(
         this.PARSE_RESULTS_STORAGE_KEY
       ) || {}
-    // 转换日期对象
     Object.keys(results).forEach((fileId) => {
       results[fileId] = {
         ...results[fileId],
@@ -467,7 +551,7 @@ class DataService {
     localStorage.removeItem(this.JUDGMENT_RULES_STORAGE_KEY)
   }
 
-  // 辅助方法：从 localStorage 获取数据
+  // 辅助方法
   private getFromStorage<T>(key: string): T | null {
     try {
       const item = localStorage.getItem(key)
@@ -478,7 +562,6 @@ class DataService {
     }
   }
 
-  // 辅助方法：保存数据到 localStorage
   private saveToStorage(key: string, data: any): void {
     try {
       localStorage.setItem(key, JSON.stringify(data))

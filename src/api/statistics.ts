@@ -55,6 +55,7 @@ export interface RegionDistribution {
   illegal_count: number // 当前任务在该省份的违规文件数量
   legal_count: number // 当前任务在该省份的合规文件数量
   is_current_task: boolean // 标记是否有当前任务的文件
+  industry_violation_count?: number // 重点行业违规数量（可选）
 }
 
 export interface RegionDistributionResponse {
@@ -63,17 +64,24 @@ export interface RegionDistributionResponse {
   msg: string
 }
 
-// 获取任务统计数据
+// 获取任务统计数据 - 支持task_id或scene_id
 export async function getTaskStatistics(
-  task_id: string,
+  task_id?: string,
+  scene_id?: string,
 ): Promise<StatisticsResponse> {
   try {
-    console.log("正在请求统计数据, task_id:", task_id)
+    console.log("正在请求统计数据, task_id:", task_id, "scene_id:", scene_id)
+
+    const params: any = {}
+    if (task_id) {
+      params.task_id = task_id
+    }
+    if (scene_id) {
+      params.scene_id = scene_id
+    }
 
     const res = await apiClient.get("/api/statistic/statistics/overview", {
-      params: {
-        task_id: task_id,
-      },
+      params: params,
     })
 
     console.log("getTaskStatistics 响应:", res)
@@ -120,19 +128,25 @@ export async function getTaskStatistics(
   }
 }
 
-// 获取违规类型统计
-export async function getViolationTypeStats(task_id: string): Promise<{
+// 获取违规类型统计 - 支持task_id或scene_id
+export async function getViolationTypeStats(task_id?: string, scene_id?: string): Promise<{
   success: boolean
   data: ViolationTypeStat[]
   msg: string
 }> {
   try {
+    const params: any = {}
+    if (task_id) {
+      params.task_id = task_id
+    }
+    if (scene_id) {
+      params.scene_id = scene_id
+    }
+
     const res = await apiClient.get(
       "/api/statistic/statistics/violation-types",
       {
-        params: {
-          task_id: task_id,
-        },
+        params: params,
       },
     )
 
@@ -159,17 +173,23 @@ export async function getViolationTypeStats(task_id: string): Promise<{
   }
 }
 
-// 获取字段提取率统计
-export async function getFieldExtractionRate(task_id: string): Promise<{
+// 获取字段提取率统计 - 支持task_id或scene_id
+export async function getFieldExtractionRate(task_id?: string, scene_id?: string): Promise<{
   success: boolean
   data: FieldExtractionRate[]
   msg: string
 }> {
   try {
+    const params: any = {}
+    if (task_id) {
+      params.task_id = task_id
+    }
+    if (scene_id) {
+      params.scene_id = scene_id
+    }
+
     const res = await apiClient.get("/api/statistic/statistics/field-rate", {
-      params: {
-        task_id: task_id,
-      },
+      params: params,
     })
 
     if (res.data?.code === 0) {
@@ -195,19 +215,27 @@ export async function getFieldExtractionRate(task_id: string): Promise<{
   }
 }
 
-// 获取线索清单列表
+// 获取线索清单列表 - 支持task_id或scene_id
 export async function getClueList(
-  task_id: string,
+  task_id?: string,
+  scene_id?: string,
   page: number = 1,
   pageSize: number = 10,
 ): Promise<ClueListResponse> {
   try {
+    const params: any = {
+      page: page,
+      page_size: pageSize,
+    }
+    if (task_id) {
+      params.task_id = task_id
+    }
+    if (scene_id) {
+      params.scene_id = scene_id
+    }
+
     const res = await apiClient.get("/api/statistic/statistics/clues", {
-      params: {
-        task_id: task_id,
-        page: page,
-        page_size: pageSize,
-      },
+      params: params,
     })
 
     if (res.data?.code === 0) {
@@ -239,17 +267,24 @@ export async function getClueList(
   }
 }
 
-// 获取地域分布数据
+// 获取地域分布数据 - 支持task_id或scene_id
 export async function getRegionDistribution(
-  task_id: string,
+  task_id?: string,
+  scene_id?: string,
 ): Promise<RegionDistributionResponse> {
   try {
+    const params: any = {}
+    if (task_id) {
+      params.task_id = task_id
+    }
+    if (scene_id) {
+      params.scene_id = scene_id
+    }
+
     const res = await apiClient.get(
       "/api/statistic/statistics/region-distribution",
       {
-        params: {
-          task_id: task_id,
-        },
+        params: params,
       },
     )
 

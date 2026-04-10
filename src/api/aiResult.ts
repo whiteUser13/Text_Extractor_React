@@ -1,5 +1,6 @@
 import { AirVent } from "lucide-react"
 import apiClient from "./index"
+import { mode } from "crypto-js"
 
 export interface PDFFileInfo {
   file_name: string
@@ -166,6 +167,41 @@ export async function updateDetail(
     return {
       success: false,
       msg: error.response?.data?.message || "网络错误",
+    }
+  }
+}
+
+//ai统计
+interface AIStatisticsResult {
+  success: boolean
+  data: Record<string, any>[]
+  msg: string
+}
+export async function getAIStatistics(
+  model: string,
+  task_id: string,
+  statType: string,
+  prompt: string,
+  customFields: string[],
+) {
+  try {
+    const res = await apiClient.post("api/airesult/ai/statistics", {
+      model: model,
+      task_id: task_id,
+      statType: statType,
+      prompt: prompt,
+      customFields: customFields,
+    })
+    if (res.status === 200) {
+      return { success: true, data: res.data.data, msg: "获取成功" }
+    } else {
+      return { success: false, data: [], msg: "获取失败" }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.msg || "网络错误",
     }
   }
 }

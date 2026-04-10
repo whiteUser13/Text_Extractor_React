@@ -88,6 +88,9 @@ interface CreateTaskDialogProps {
   isOpen: boolean // 父组件传入的 open 状态
   onOpenChange: (open: boolean) => void // 通知父组件的 setter
   type: "create" | "update"
+  defaultTaskType?: 'parcel' | 'non-parcel'
+  sceneId?: string
+  sceneName?: string
 }
 
 const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
@@ -96,6 +99,9 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   isOpen,
   onOpenChange,
   type,
+  defaultTaskType,
+  sceneId,
+  sceneName,
 }) => {
   const [open, setOpen] = useState(false)
   const [taskName, setTaskName] = useState("")
@@ -399,9 +405,16 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
       (rule) => rule.name.trim() && rule.prompt.trim(),
     )
     const validJudgmentRules = judgmentRules.filter((rule) => rule.name.trim())
+    
+    // 确保 sceneId 有值，如果没有则使用 localStorage 中保存的当前场景ID
+    const currentSceneId = sceneId || localStorage.getItem("current_scene_id") || "default"
+    const currentSceneName = sceneName || localStorage.getItem("current_scene_name") || ""
+    
     // 创建任务
     const newTask = {
       id: `task-${Date.now()}`,
+      sceneId: currentSceneId,
+      sceneName: currentSceneName,
       share: shareMode,
       group_name: user ? user.group_name : "unknown",
       name: taskName.trim(),
@@ -494,6 +507,8 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
     let task_id = selectedTask ? selectedTask.id : ""
     const updateTask = {
       id: task_id,
+      sceneId: selectedTask?.sceneId,
+      sceneName: selectedTask?.sceneName || sceneName,
       name: taskName.trim(),
       share: shareMode,
       province: province.trim(),
@@ -567,6 +582,16 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="scene">任务场景</Label>
+              <Input
+                id="scene"
+                value={sceneName || ""}
+                disabled
+                className="mt-1"
+                placeholder="当前场景"
+              />
             </div>
             <div>
               <Label htmlFor="taskDescription">任务描述</Label>

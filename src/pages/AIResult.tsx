@@ -27,7 +27,7 @@ import FileDetailDialog, {
 } from "@/components/AIResult/FileDetailDialog"
 import EditDetailDialog from "@/components/AIResult/EditDetailDialog"
 import ChinaEChartsMap from "@/components/AIResult/ChinaEChartsMap"
-
+import AIStatisticsPanel from "@/components/AIResult/AIStatisticsPanel"
 import {
   getTaskStatistics,
   getClueList,
@@ -190,7 +190,7 @@ const SimpleBarChart: React.FC<{
 
 const AIResult: React.FC = () => {
   const { toast } = useToast()
-  const { selectedTaskId } = useTaskStore()
+  const { selectedTaskId, selectedTask } = useTaskStore()
 
   const [activeTab, setActiveTab] = useState<string>("preview")
   const [filelist, setFilelist] = useState<PDFFileInfo[]>([])
@@ -351,7 +351,7 @@ const AIResult: React.FC = () => {
       const detail = await getFileDetail(file_name, selectedTaskId)
       if (detail) {
         const pdf_path = await getPdfPath(file_name, selectedTaskId)
-        if (pdf_path.success) {
+        if (pdf_path.success && pdf_path.path) {
           if (pdf_path.path.startsWith("pdf_cut")) {
             detail.pdf_url =
               "/api/file/task-cut/" +
@@ -368,6 +368,8 @@ const AIResult: React.FC = () => {
               pdf_path.path +
               "?task_id=" +
               selectedTaskId
+          } else {
+            detail.pdf_url = pdf_path.path
           }
         }
         setSelectedDetail(detail)
@@ -596,16 +598,20 @@ const AIResult: React.FC = () => {
       illegal_count: stats.illegal,
       legal_count: stats.legal,
       is_current_task: false,
+      industry_violation_count: 0, 
     }))
   }
 
-  const loadAllStatistics = async (taskId: string, files: PDFFileInfo[]) => {
+  const loadAllStatistics = async (taskId: string, files: PDFFileInfo[], sceneId?: string, viewMode: "current" | "all" = "all") => {
     try {
       await Promise.all([
         (async () => {
           setLoading((prev) => ({ ...prev, statistics: true }))
           try {
-            const statsResult = await getTaskStatistics(taskId)
+            // 根据视图模式决定传递哪个参数
+            const statsResult = viewMode === "current" 
+              ? await getTaskStatistics(taskId) 
+              : await getTaskStatistics(undefined, sceneId)
             if (statsResult.success && statsResult.data) {
               setStatistics({
                 total_files: statsResult.data.total_files || 0,
@@ -631,7 +637,10 @@ const AIResult: React.FC = () => {
         (async () => {
           setLoading((prev) => ({ ...prev, clues: true }))
           try {
-            const clueResult = await getClueList(taskId, 1, 10)
+            // 根据视图模式决定传递哪个参数
+            const clueResult = viewMode === "current" 
+              ? await getClueList(taskId, undefined, 1, 10) 
+              : await getClueList(undefined, sceneId, 1, 10)
             if (clueResult.success && clueResult.data) {
               setClueList(
                 Array.isArray(clueResult.data.items)
@@ -652,7 +661,10 @@ const AIResult: React.FC = () => {
         (async () => {
           setLoading((prev) => ({ ...prev, region: true }))
           try {
-            const regionResult = await getRegionDistribution(taskId)
+            // 根据视图模式决定传递哪个参数
+            const regionResult = viewMode === "current" 
+              ? await getRegionDistribution(taskId) 
+              : await getRegionDistribution(undefined, sceneId)
             if (regionResult.success && regionResult.data) {
               const regionPayload = regionResult.data as any
 
@@ -672,6 +684,7 @@ const AIResult: React.FC = () => {
                           illegal_count: current.illegal_count,
                           legal_count: current.legal_count,
                           is_current_task: true,
+                          industry_violation_count: current.industry_violation_count || 0
                         },
                       ]
                     : [],
@@ -688,7 +701,10 @@ const AIResult: React.FC = () => {
                 )
                 setCurrentTaskRegionData(
                   regionPayload.current_task_stat
-                    ? [regionPayload.current_task_stat]
+                    ? [{
+                        ...regionPayload.current_task_stat,
+                        industry_violation_count: regionPayload.current_task_stat.industry_violation_count || 0
+                      }]
                     : [],
                 )
               }
@@ -720,7 +736,12 @@ const AIResult: React.FC = () => {
     try {
       setLoading((prev) => ({ ...prev, clues: true }))
       const nextPage = cluePage + 1
-      const result = await getClueList(selectedTaskId, nextPage, 10)
+      // 获取当前任务的sceneId
+      const currentSceneId = selectedTask?.sceneId || "default";
+      // 根据当前视图模式加载更多线索
+      const result = regionViewMode === "current" 
+        ? await getClueList(selectedTaskId, undefined, nextPage, 10)
+        : await getClueList(undefined, currentSceneId, nextPage, 10)
       if (result.success && result.data) {
         setClueList((prev) => [
           ...prev,
@@ -768,9 +789,13 @@ const AIResult: React.FC = () => {
     }
 
     if (activeTab == "statistic") {
-      loadAllStatistics(selectedTaskId, filelist)
+      // 获取当前任务的sceneId
+      const currentSceneId = selectedTask?.sceneId;
+      // 如果sceneId无效（空、undefined、"default"等），则只使用taskId进行单任务统计
+      const validSceneId = currentSceneId && currentSceneId !== "default" && currentSceneId.trim() ? currentSceneId : undefined;
+      loadAllStatistics(selectedTaskId, filelist, validSceneId, regionViewMode);
     }
-  }, [selectedTaskId, activeTab])
+  }, [selectedTaskId, activeTab, regionViewMode])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -841,6 +866,7 @@ const AIResult: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+            <AIStatisticsPanel task_id={selectedTaskId} />
           </TabsContent>
 
           <TabsContent value="statistic" className="space-y-6">
@@ -996,7 +1022,7 @@ const AIResult: React.FC = () => {
                   </CardHeader>
                   <CardContent className="p-4">
                     {!loading.region && displayedRegionData.length > 0 && (
-                      <div className="grid grid-cols-3 gap-2 mb-3 bg-slate-50 rounded-lg p-2">
+                      <div className="grid grid-cols-4 gap-2 mb-3 bg-slate-50 rounded-lg p-2">
                         <div className="text-center">
                           <div className="text-xs text-slate-500">覆盖省份</div>
                           <div className="text-base font-bold text-blue-600">
@@ -1020,6 +1046,15 @@ const AIResult: React.FC = () => {
                           <div className="text-base font-bold text-red-600">
                             {displayedRegionData.reduce(
                               (sum, r) => sum + r.illegal_count,
+                              0,
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-slate-500">违规中重点行业数量</div>
+                          <div className="text-base font-bold text-orange-600">
+                            {displayedRegionData.reduce(
+                              (sum, r) => sum + (r.industry_violation_count || 0),
                               0,
                             )}
                           </div>
@@ -1096,7 +1131,7 @@ const AIResult: React.FC = () => {
                               </div>
                               <div className="flex justify-between items-center text-xs text-slate-500">
                                 <span>违规字段：{clue.field_name || "-"}</span>
-                                <span>置信度：{clue.confidence || 0}%</span>
+                                {/* <span>置信度：{clue.confidence || 0}%</span> */}
                               </div>
                               <div className="flex justify-between items-center mt-2">
                                 <span className="text-xs text-slate-400">
