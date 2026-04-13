@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { useParams, useNavigate } from "react-router-dom"
 import {
   Card,
   CardContent,
@@ -33,16 +34,37 @@ import { useTaskStore } from "@/context/TaskContext"
 
 const Dashboard: React.FC = () => {
   const { toast } = useToast()
+  const { sceneId } = useParams<{ sceneId: string }>()
+  const navigate = useNavigate()
 
   const [isAdmin, setIsAdmin] = useState(true) // 模拟管理员权限
   const [tasksRefreshKey, setTasksRefreshKey] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  const [sceneName, setSceneName] = useState<string>("")
 
   const [isOpenCreateTaskDialog, setIsOpenCreateTaskDialog] = useState(false)
+  
   const { selectedTaskId, setSelectedTaskId, selectedTask, setSelectedTask } =
     useTaskStore()
 
   useEffect(() => {
+    if (!sceneId) {
+      toast({
+        title: "场景未指定",
+        description: "请从首页选择一个场景后进入任务管理",
+        variant: "destructive",
+      })
+      navigate("/")
+      return
+    }
+
+    const scene = dataService.getScene(sceneId)
+    if (scene) {
+      setSceneName(scene.name)
+      localStorage.setItem("current_scene_id", sceneId)
+      localStorage.setItem("current_scene_name", scene.name)
+    }
+
     console.log(selectedTaskId, selectedTask)
     // 获取任务列表
     const loadTasks = async () => {
@@ -56,6 +78,8 @@ const Dashboard: React.FC = () => {
             // 创建任务
             const newTask = {
               id: task.id,
+              sceneId: task.sceneId || "default",
+              sceneName: task.sceneName || undefined,
               share: task.share,
               name: task.name,
               group_name: task.group_name,
@@ -91,7 +115,7 @@ const Dashboard: React.FC = () => {
     }
     loadTasks()
     console.log("加载任务")
-  }, [])
+  }, [sceneId])
 
   const handleTaskCreated = () => {
     setTasksRefreshKey((prev) => prev + 1)
@@ -139,6 +163,8 @@ const Dashboard: React.FC = () => {
                     onOpenChange={setIsOpenCreateTaskDialog}
                     onTaskCreated={handleTaskCreated}
                     type="create"
+                    sceneId={sceneId}
+                    sceneName={sceneName}
                   />
                 </div>
               </CardHeader>
@@ -147,6 +173,8 @@ const Dashboard: React.FC = () => {
                   <TaskList
                     key={tasksRefreshKey}
                     onTasksChange={handleTaskCreated}
+                    sceneId={sceneId}
+                    sceneName={sceneName}
                   />
                 </div>
               </CardContent>

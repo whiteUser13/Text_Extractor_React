@@ -67,7 +67,7 @@ const FileDecompression: React.FC = () => {
   // 6.3 任务相关状态
   const [tasks, setTasks] = useState<Task[]>([])
   const [selectedTaskName, setSelectedTaskName] = useState<string>("")
-  const { selectedTaskId, setSelectedTaskId } = useTaskStore()
+  const { selectedTaskId, setSelectedTaskId, selectedTask } = useTaskStore() // 添加 selectedTask
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [totalFilesToProcess, setTotalFilesToProcess] = useState<number>(0)
@@ -154,7 +154,14 @@ const FileDecompression: React.FC = () => {
 
       const data = await response.json()
       if (data.success || data.tasks) {
-        setTasks(data.tasks || [])
+        // 【新增】：如果当前有选中的任务并且它有sceneId，则只显示同一场景下的任务
+        let filteredTasks = data.tasks || [];
+        
+        if (selectedTask?.sceneId) {
+          filteredTasks = filteredTasks.filter(task => task.sceneId === selectedTask.sceneId);
+        }
+        
+        setTasks(filteredTasks);
       } else {
         toast({
           title: "获取任务列表失败",

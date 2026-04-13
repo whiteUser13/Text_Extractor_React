@@ -71,7 +71,9 @@ const FileUpload: React.FC = () => {
   const [taskStats, setTaskStats] = useState<any[]>([])
 
   // 任务选择
-  const [tasks, setTasks] = useState<Task[]>([]) //所有任务
+  const [tasks, setTasks] = useState<Task[]>([]) // 所有任务
+  const [currentSceneId, setCurrentSceneId] = useState<string>("")
+  const [currentSceneName, setCurrentSceneName] = useState<string>("")
   const { selectedTaskId, setSelectedTaskId, selectedTask, setSelectedTask } =
     useTaskStore()
 
@@ -167,7 +169,18 @@ const FileUpload: React.FC = () => {
   ]
 
   useEffect(() => {
-    setTasks(dataService.getAllTasks())
+    const storedSceneId = localStorage.getItem("current_scene_id") || ""
+    const storedSceneName = localStorage.getItem("current_scene_name") || ""
+    setCurrentSceneId(storedSceneId)
+    setCurrentSceneName(storedSceneName)
+  }, [])
+
+  useEffect(() => {
+    if (currentSceneId) {
+      setTasks(dataService.getTasksByScene(currentSceneId))
+    } else {
+      setTasks(dataService.getAllTasks())
+    }
     console.log("selectedTask", selectedTask, selectedTaskId)
 
     if (selectedAreaCodeArr.length === codeArr.length && codeArr.length > 0) {
@@ -175,7 +188,18 @@ const FileUpload: React.FC = () => {
     } else {
       setCheckAll(false)
     }
-  }, [selectedAreaCodeArr, codeArr, selectedTask, selectedTaskId])
+  }, [selectedAreaCodeArr, codeArr, currentSceneId])
+
+  useEffect(() => {
+    if (
+      currentSceneId &&
+      selectedTask?.sceneId &&
+      selectedTask.sceneId !== currentSceneId
+    ) {
+      setSelectedTaskId("")
+      setSelectedTask(null)
+    }
+  }, [currentSceneId, selectedTask, setSelectedTaskId, setSelectedTask])
 
   // 获取文件图标
   const getFileIcon = (file: File | FileInfo) => {
@@ -695,6 +719,7 @@ const FileUpload: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               处理任务选择
+              {currentSceneName ? <span className="text-sm text-slate-500">（场景：{currentSceneName}）</span> : null}
             </CardTitle>
           </CardHeader>
           <CardContent>
