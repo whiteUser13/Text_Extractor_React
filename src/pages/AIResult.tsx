@@ -598,20 +598,26 @@ const AIResult: React.FC = () => {
       illegal_count: stats.illegal,
       legal_count: stats.legal,
       is_current_task: false,
-      industry_violation_count: 0, 
+      industry_violation_count: 0,
     }))
   }
 
-  const loadAllStatistics = async (taskId: string, files: PDFFileInfo[], sceneId?: string, viewMode: "current" | "all" = "all") => {
+  const loadAllStatistics = async (
+    taskId: string,
+    files: PDFFileInfo[],
+    sceneId?: string,
+    viewMode: "current" | "all" = "all",
+  ) => {
     try {
       await Promise.all([
         (async () => {
           setLoading((prev) => ({ ...prev, statistics: true }))
           try {
             // 根据视图模式决定传递哪个参数
-            const statsResult = viewMode === "current" 
-              ? await getTaskStatistics(taskId) 
-              : await getTaskStatistics(undefined, sceneId)
+            const statsResult =
+              viewMode === "current"
+                ? await getTaskStatistics(taskId)
+                : await getTaskStatistics(undefined, sceneId)
             if (statsResult.success && statsResult.data) {
               setStatistics({
                 total_files: statsResult.data.total_files || 0,
@@ -638,9 +644,10 @@ const AIResult: React.FC = () => {
           setLoading((prev) => ({ ...prev, clues: true }))
           try {
             // 根据视图模式决定传递哪个参数
-            const clueResult = viewMode === "current" 
-              ? await getClueList(taskId, undefined, 1, 10) 
-              : await getClueList(undefined, sceneId, 1, 10)
+            const clueResult =
+              viewMode === "current"
+                ? await getClueList(taskId, undefined, 1, 10)
+                : await getClueList(undefined, sceneId, 1, 10)
             if (clueResult.success && clueResult.data) {
               setClueList(
                 Array.isArray(clueResult.data.items)
@@ -662,9 +669,10 @@ const AIResult: React.FC = () => {
           setLoading((prev) => ({ ...prev, region: true }))
           try {
             // 根据视图模式决定传递哪个参数
-            const regionResult = viewMode === "current" 
-              ? await getRegionDistribution(taskId) 
-              : await getRegionDistribution(undefined, sceneId)
+            const regionResult =
+              viewMode === "current"
+                ? await getRegionDistribution(taskId)
+                : await getRegionDistribution(undefined, sceneId)
             if (regionResult.success && regionResult.data) {
               const regionPayload = regionResult.data as any
 
@@ -684,7 +692,8 @@ const AIResult: React.FC = () => {
                           illegal_count: current.illegal_count,
                           legal_count: current.legal_count,
                           is_current_task: true,
-                          industry_violation_count: current.industry_violation_count || 0
+                          industry_violation_count:
+                            current.industry_violation_count || 0,
                         },
                       ]
                     : [],
@@ -701,10 +710,14 @@ const AIResult: React.FC = () => {
                 )
                 setCurrentTaskRegionData(
                   regionPayload.current_task_stat
-                    ? [{
-                        ...regionPayload.current_task_stat,
-                        industry_violation_count: regionPayload.current_task_stat.industry_violation_count || 0
-                      }]
+                    ? [
+                        {
+                          ...regionPayload.current_task_stat,
+                          industry_violation_count:
+                            regionPayload.current_task_stat
+                              .industry_violation_count || 0,
+                        },
+                      ]
                     : [],
                 )
               }
@@ -737,11 +750,12 @@ const AIResult: React.FC = () => {
       setLoading((prev) => ({ ...prev, clues: true }))
       const nextPage = cluePage + 1
       // 获取当前任务的sceneId
-      const currentSceneId = selectedTask?.sceneId || "default";
+      const currentSceneId = selectedTask?.sceneId || "default"
       // 根据当前视图模式加载更多线索
-      const result = regionViewMode === "current" 
-        ? await getClueList(selectedTaskId, undefined, nextPage, 10)
-        : await getClueList(undefined, currentSceneId, nextPage, 10)
+      const result =
+        regionViewMode === "current"
+          ? await getClueList(selectedTaskId, undefined, nextPage, 10)
+          : await getClueList(undefined, currentSceneId, nextPage, 10)
       if (result.success && result.data) {
         setClueList((prev) => [
           ...prev,
@@ -790,10 +804,11 @@ const AIResult: React.FC = () => {
 
     if (activeTab == "statistic") {
       // 获取当前任务的sceneId
-      const currentSceneId = selectedTask?.sceneId;
+      const currentSceneId = selectedTask?.sceneId
       // 如果sceneId无效（空、undefined、"default"等），则只使用taskId进行单任务统计
-      const validSceneId = currentSceneId && currentSceneId !== "default" && currentSceneId.trim() ? currentSceneId : undefined;
-      loadAllStatistics(selectedTaskId, filelist, validSceneId, regionViewMode);
+      const validSceneId =
+        currentSceneId && currentSceneId.trim() ? currentSceneId : undefined
+      loadAllStatistics(selectedTaskId, filelist, validSceneId, regionViewMode)
     }
   }, [selectedTaskId, activeTab, regionViewMode])
 
@@ -1051,10 +1066,13 @@ const AIResult: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs text-slate-500">违规中重点行业数量</div>
+                          <div className="text-xs text-slate-500">
+                            违规中重点行业数量
+                          </div>
                           <div className="text-base font-bold text-orange-600">
                             {displayedRegionData.reduce(
-                              (sum, r) => sum + (r.industry_violation_count || 0),
+                              (sum, r) =>
+                                sum + (r.industry_violation_count || 0),
                               0,
                             )}
                           </div>
