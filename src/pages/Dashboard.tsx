@@ -43,7 +43,7 @@ const Dashboard: React.FC = () => {
   const [sceneName, setSceneName] = useState<string>("")
 
   const [isOpenCreateTaskDialog, setIsOpenCreateTaskDialog] = useState(false)
-  
+
   const { selectedTaskId, setSelectedTaskId, selectedTask, setSelectedTask } =
     useTaskStore()
 

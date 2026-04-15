@@ -1,4 +1,5 @@
 // services/dataService.ts
+
 import type {
   FileInfo,
   ProcessingStatus,
@@ -56,7 +57,8 @@ class DataService {
           id: "rule-1",
           name: "地块基本信息提取",
           description: "提取地块编号、位置、面积等基本信息",
-          prompt: "请从文档中提取地块编号、地块位置、地块面积、土地性质等基本信息",
+          prompt:
+            "请从文档中提取地块编号、地块位置、地块面积、土地性质等基本信息",
           sections: ["基本信息", "地块概况"],
           enabled: true,
           createdAt: new Date(),
@@ -125,7 +127,7 @@ class DataService {
   // 场景管理方法
   getAllScenes(): any[] {
     const scenes = this.getFromStorage<any[]>(this.SCENES_STORAGE_KEY) || []
-    return scenes.map(scene => ({
+    return scenes.map((scene) => ({
       ...scene,
       createdAt: new Date(scene.createdAt),
       updatedAt: new Date(scene.updatedAt),
@@ -133,19 +135,20 @@ class DataService {
   }
 
   getScene(id: string): any | undefined {
-    return this.getAllScenes().find(scene => scene.id === id)
+    return this.getAllScenes().find((scene) => scene.id === id)
   }
 
   createScene(scene: Omit<any, "id" | "createdAt" | "updatedAt">): any {
     const scenes = this.getAllScenes()
-    
+
     // 生成简短的唯一场景ID：8位随机字符串（字母+数字）
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let sceneId = ''
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    let sceneId = ""
     for (let i = 0; i < 8; i++) {
       sceneId += chars.charAt(Math.floor(Math.random() * chars.length))
     }
-    
+
     const newScene = {
       ...scene,
       id: sceneId,
@@ -159,9 +162,9 @@ class DataService {
 
   updateScene(id: string, updates: Partial<any>): any | null {
     const scenes = this.getAllScenes()
-    const index = scenes.findIndex(s => s.id === id)
+    const index = scenes.findIndex((s) => s.id === id)
     if (index === -1) return null
-    
+
     scenes[index] = {
       ...scenes[index],
       ...updates,
@@ -174,17 +177,17 @@ class DataService {
   deleteScene(id: string): boolean {
     const scenes = this.getAllScenes()
     if (scenes.length <= 1) return false
-    
-    const filtered = scenes.filter(s => s.id !== id)
+
+    const filtered = scenes.filter((s) => s.id !== id)
     this.saveToStorage(this.SCENES_STORAGE_KEY, filtered)
-    
+
     const tasks = this.getAllTasks()
-    tasks.forEach(task => {
+    tasks.forEach((task) => {
       if (task.sceneId === id) {
         this.deleteTask(task.id)
       }
     })
-    
+
     return true
   }
 
@@ -192,13 +195,13 @@ class DataService {
     const tasks = this.getTasksByScene(sceneId)
     return {
       totalTasks: tasks.length,
-      activeTasks: tasks.filter(t => t.enabled).length,
+      activeTasks: tasks.filter((t) => t.enabled).length,
     }
   }
 
   getTasksByScene(sceneId: string): Task[] {
     const allTasks = this.getAllTasks()
-    return allTasks.filter(task => task.sceneId === sceneId)
+    return allTasks.filter((task) => task.sceneId === sceneId)
   }
 
   // 任务管理
@@ -333,7 +336,7 @@ class DataService {
   private getAllProcessingStatus(): Record<string, ProcessingStatus> {
     return (
       this.getFromStorage<Record<string, ProcessingStatus>>(
-        this.PROCESSING_STATUS_STORAGE_KEY
+        this.PROCESSING_STATUS_STORAGE_KEY,
       ) || {}
     )
   }
@@ -352,7 +355,7 @@ class DataService {
   getAllExtractionRules(): ExtractionRule[] {
     const rules =
       this.getFromStorage<ExtractionRule[]>(
-        this.EXTRACTION_RULES_STORAGE_KEY
+        this.EXTRACTION_RULES_STORAGE_KEY,
       ) || []
     return rules.map((rule) => ({
       ...rule,
@@ -439,7 +442,7 @@ class DataService {
   private getAllExtractionResults(): Record<string, ExtractionResult[]> {
     const results =
       this.getFromStorage<Record<string, ExtractionResult[]>>(
-        this.EXTRACTION_RESULTS_STORAGE_KEY
+        this.EXTRACTION_RESULTS_STORAGE_KEY,
       ) || {}
     Object.keys(results).forEach((fileId) => {
       results[fileId] = results[fileId].map((result) => ({
@@ -471,7 +474,7 @@ class DataService {
   private getAllJudgmentResults(): Record<string, JudgmentResult[]> {
     const results =
       this.getFromStorage<Record<string, JudgmentResult[]>>(
-        this.JUDGMENT_RESULTS_STORAGE_KEY
+        this.JUDGMENT_RESULTS_STORAGE_KEY,
       ) || {}
     Object.keys(results).forEach((fileId) => {
       results[fileId] = results[fileId].map((result) => ({
@@ -500,7 +503,7 @@ class DataService {
   private getAllParseResults(): Record<string, DocumentParseResult> {
     const results =
       this.getFromStorage<Record<string, DocumentParseResult>>(
-        this.PARSE_RESULTS_STORAGE_KEY
+        this.PARSE_RESULTS_STORAGE_KEY,
       ) || {}
     Object.keys(results).forEach((fileId) => {
       results[fileId] = {
@@ -516,18 +519,24 @@ class DataService {
     const files = this.getAllFiles()
     const statuses = this.getAllProcessingStatus()
 
-    const stageStats = Object.values(statuses).reduce((acc, status) => {
-      acc[status.stage] = (acc[status.stage] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    const stageStats = Object.values(statuses).reduce(
+      (acc, status) => {
+        acc[status.stage] = (acc[status.stage] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
 
     const errorStats = files
       .filter((file) => file.status === "error")
-      .reduce((acc, file) => {
-        const error = file.errorMessage || "Unknown Error"
-        acc[error] = (acc[error] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      .reduce(
+        (acc, file) => {
+          const error = file.errorMessage || "Unknown Error"
+          acc[error] = (acc[error] || 0) + 1
+          return acc
+        },
+        {} as Record<string, number>,
+      )
 
     return {
       totalFiles: files.length,

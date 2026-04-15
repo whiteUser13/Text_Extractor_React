@@ -2,7 +2,13 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -48,7 +54,7 @@ const ScenesPage: React.FC = () => {
   const loadScenes = () => {
     const allScenes = dataService.getAllScenes()
     setScenes(allScenes)
-    
+
     const stats: Record<string, any> = {}
     allScenes.forEach((scene: any) => {
       stats[scene.id] = dataService.getSceneStats(scene.id)
@@ -62,19 +68,19 @@ const ScenesPage: React.FC = () => {
       toast({ title: "请输入场景名称", variant: "destructive" })
       return
     }
-    
+
     dataService.createScene({
       name: dialogName.trim(),
       description: dialogDescription.trim(),
       province: dialogProvince || undefined,
     })
-    
+
     loadScenes()
     setIsDialogOpen(false)
     setDialogName("")
     setDialogDescription("")
     setDialogProvince("")
-    
+
     toast({
       title: "创建成功",
       description: `场景"${dialogName}"已创建`,
@@ -110,7 +116,7 @@ const ScenesPage: React.FC = () => {
       })
       return
     }
-    
+
     const result = dataService.deleteScene(sceneId)
     if (result) {
       loadScenes()
@@ -145,7 +151,9 @@ const ScenesPage: React.FC = () => {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               任务场景
             </h1>
-            <p className="text-gray-600 mt-2">选择或创建一个场景，开始你的审核任务</p>
+            <p className="text-gray-600 mt-2">
+              选择或创建一个场景，开始你的审核任务
+            </p>
           </div>
           <Button
             onClick={() => {
@@ -155,8 +163,7 @@ const ScenesPage: React.FC = () => {
               setDialogProvince("")
               setIsDialogOpen(true)
             }}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600"
-          >
+            className="bg-gradient-to-r from-blue-600 to-indigo-600">
             <Plus className="h-4 w-4 mr-2" />
             创建场景
           </Button>
@@ -164,14 +171,18 @@ const ScenesPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {scenes.map((scene) => (
-            <Card key={scene.id} className="hover:shadow-lg transition-all duration-300 cursor-pointer group">
+            <Card
+              key={scene.id}
+              className="hover:shadow-lg transition-all duration-300 cursor-pointer group">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <Briefcase className="h-5 w-5 text-blue-500" />
                     <div>
                       <CardTitle className="text-xl">{scene.name}</CardTitle>
-                      <CardDescription className="mt-1">{scene.description}</CardDescription>
+                      <CardDescription className="mt-1">
+                        {scene.description}
+                      </CardDescription>
                     </div>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -185,8 +196,7 @@ const ScenesPage: React.FC = () => {
                         setDialogDescription(scene.description || "")
                         setDialogProvince(scene.province || "")
                         setIsDialogOpen(true)
-                      }}
-                    >
+                      }}>
                       编辑
                     </Button>
                     <Button
@@ -196,8 +206,7 @@ const ScenesPage: React.FC = () => {
                         e.stopPropagation()
                         handleDeleteScene(scene.id)
                       }}
-                      className="text-red-500 hover:text-red-700"
-                    >
+                      className="text-red-500 hover:text-red-700">
                       删除
                     </Button>
                   </div>
@@ -207,7 +216,9 @@ const ScenesPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex gap-4">
                     <div>
-                      <p className="text-2xl font-bold">{sceneStats[scene.id]?.totalTasks || 0}</p>
+                      <p className="text-2xl font-bold">
+                        {sceneStats[scene.id]?.totalTasks || 0}
+                      </p>
                       <p className="text-xs text-gray-500">任务数量</p>
                     </div>
                     {!validatenull(scene.province) && (
@@ -216,8 +227,7 @@ const ScenesPage: React.FC = () => {
                   </div>
                   <Button
                     onClick={() => handleEnterScene(scene.id)}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600"
-                  >
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600">
                     进入工作台
                   </Button>
                 </div>
@@ -229,9 +239,13 @@ const ScenesPage: React.FC = () => {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>{editingScene ? "编辑场景" : "创建场景"}</DialogTitle>
+              <DialogTitle>
+                {editingScene ? "编辑场景" : "创建场景"}
+              </DialogTitle>
               <DialogDescription>
-                {editingScene ? "修改场景的基本信息" : "创建一个新的任务管理场景"}
+                {editingScene
+                  ? "修改场景的基本信息"
+                  : "创建一个新的任务管理场景"}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -253,21 +267,13 @@ const ScenesPage: React.FC = () => {
                   placeholder="场景描述..."
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="province">关联省份（可选）</Label>
-                <Input
-                  id="province"
-                  value={dialogProvince}
-                  onChange={(e) => setDialogProvince(e.target.value)}
-                  placeholder="例如：浙江省"
-                />
-              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 取消
               </Button>
-              <Button onClick={editingScene ? handleUpdateScene : handleCreateScene}>
+              <Button
+                onClick={editingScene ? handleUpdateScene : handleCreateScene}>
                 保存
               </Button>
             </DialogFooter>

@@ -1,7 +1,13 @@
 // pages/TaskManagementPage.tsx
 import React, { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CreateTaskDialog, TaskList } from "@/components/TaskManagement"
 import { dataService } from "@/services/dataService"
@@ -27,7 +33,7 @@ const TaskManagementPage: React.FC = () => {
   // 检查登录状态
   const checkAuth = () => {
     const accessToken = getTokenStore({ name: "access_token" })
-    
+
     if (validatenull(accessToken)) {
       redirectToOAuthLogin()
       return false
@@ -48,7 +54,7 @@ const TaskManagementPage: React.FC = () => {
   const loadData = () => {
     // 加载场景信息
     const scenes = dataService.getAllScenes()
-    const currentScene = scenes.find(s => s.id === sceneId)
+    const currentScene = scenes.find((s) => s.id === sceneId)
     if (currentScene) {
       setScene(currentScene)
     } else if (!validatenull(sceneId)) {
@@ -69,7 +75,7 @@ const TaskManagementPage: React.FC = () => {
           dataService.clearAll()
           const localTasksId = dataService.getAllTasksId()
           const backendTasks: string[] = []
-          
+
           result.data.forEach((task: any) => {
             const newTask = {
               id: task.id,
@@ -88,9 +94,11 @@ const TaskManagementPage: React.FC = () => {
             dataService.addTask(newTask)
             backendTasks.push(task.id)
           })
-          
-          const difference = localTasksId.filter(id => !backendTasks.includes(id))
-          difference.forEach(id => dataService.deleteTask(id))
+
+          const difference = localTasksId.filter(
+            (id) => !backendTasks.includes(id),
+          )
+          difference.forEach((id) => dataService.deleteTask(id))
         } else {
           toast({
             title: "获取任务失败",
@@ -125,15 +133,16 @@ const TaskManagementPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/")}
-          >
+          <Button variant="outline" onClick={() => navigate("/")}>
             返回场景
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{!validatenull(scene?.name) ? scene.name : "任务管理"}</h1>
-            <p className="text-gray-600">{!validatenull(scene?.description) ? scene.description : ""}</p>
+            <h1 className="text-2xl font-bold">
+              {!validatenull(scene?.name) ? scene.name : "任务管理"}
+            </h1>
+            <p className="text-gray-600">
+              {!validatenull(scene?.description) ? scene.description : ""}
+            </p>
           </div>
         </div>
 
@@ -141,17 +150,14 @@ const TaskManagementPage: React.FC = () => {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>
-                  任务管理中心
-                </CardTitle>
+                <CardTitle>任务管理中心</CardTitle>
                 <CardDescription>
                   创建和管理审核任务，配置提取规则和判别规则
                 </CardDescription>
               </div>
               <Button
                 onClick={() => setIsOpenCreateTaskDialog(true)}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600"
-              >
+                className="bg-gradient-to-r from-blue-600 to-indigo-600">
                 新建任务
               </Button>
               <CreateTaskDialog

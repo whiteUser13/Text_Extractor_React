@@ -129,7 +129,10 @@ export async function getTaskStatistics(
 }
 
 // 获取违规类型统计 - 支持task_id或scene_id
-export async function getViolationTypeStats(task_id?: string, scene_id?: string): Promise<{
+export async function getViolationTypeStats(
+  task_id?: string,
+  scene_id?: string,
+): Promise<{
   success: boolean
   data: ViolationTypeStat[]
   msg: string
@@ -174,7 +177,10 @@ export async function getViolationTypeStats(task_id?: string, scene_id?: string)
 }
 
 // 获取字段提取率统计 - 支持task_id或scene_id
-export async function getFieldExtractionRate(task_id?: string, scene_id?: string): Promise<{
+export async function getFieldExtractionRate(
+  task_id?: string,
+  scene_id?: string,
+): Promise<{
   success: boolean
   data: FieldExtractionRate[]
   msg: string

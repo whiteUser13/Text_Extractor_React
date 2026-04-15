@@ -81,15 +81,6 @@ export const SceneDialog: React.FC<SceneDialogProps> = ({
               placeholder="场景描述..."
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="province">关联省份（可选）</Label>
-            <Input
-              id="province"
-              value={province}
-              onChange={(e) => setProvince(e.target.value)}
-              placeholder="例如：浙江省"
-            />
-          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

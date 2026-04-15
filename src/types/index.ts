@@ -135,7 +135,7 @@ export interface Task {
   updatedAt?: Date
   enabled: boolean
   fileCount?: number // 使用此任务处理的文件数量
-  taskType: 'parcel' | 'non-parcel' // 0405修改
+  taskType: "parcel" | "non-parcel" // 0405修改
 }
 
 // 判别结果

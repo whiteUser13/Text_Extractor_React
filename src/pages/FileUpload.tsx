@@ -719,7 +719,11 @@ const FileUpload: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               处理任务选择
-              {currentSceneName ? <span className="text-sm text-slate-500">（场景：{currentSceneName}）</span> : null}
+              {currentSceneName ? (
+                <span className="text-sm text-slate-500">
+                  （场景：{currentSceneName}）
+                </span>
+              ) : null}
             </CardTitle>
           </CardHeader>
           <CardContent>
