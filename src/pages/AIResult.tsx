@@ -28,6 +28,7 @@ import FileDetailDialog, {
 import EditDetailDialog from "@/components/AIResult/EditDetailDialog"
 import ChinaEChartsMap from "@/components/AIResult/ChinaEChartsMap"
 import AIStatisticsPanel from "@/components/AIResult/AIStatisticsPanel"
+import AIStatisticsPreview from "@/components/AIResult/AIStatisticsPreview"
 import {
   getTaskStatistics,
   getClueList,
@@ -192,6 +193,10 @@ const AIResult: React.FC = () => {
   const { toast } = useToast()
   const { selectedTaskId, selectedTask } = useTaskStore()
 
+  const [savedStatsRefreshTick, setSavedStatsRefreshTick] = useState(0)
+  const handleStatsSavedSuccess = () => {
+    setSavedStatsRefreshTick((v) => v + 1)
+  }
   const [activeTab, setActiveTab] = useState<string>("preview")
   const [filelist, setFilelist] = useState<PDFFileInfo[]>([])
   const [allFilelist, setAllFilelist] = useState<PDFFileInfo[]>([])
@@ -881,7 +886,14 @@ const AIResult: React.FC = () => {
                 )}
               </CardContent>
             </Card>
-            <AIStatisticsPanel task_id={selectedTaskId} />
+            <AIStatisticsPanel
+              task_id={selectedTaskId}
+              onSavedSuccess={handleStatsSavedSuccess}
+            />
+            <AIStatisticsPreview
+              task_id={selectedTaskId}
+              refreshTick={savedStatsRefreshTick}
+            />
           </TabsContent>
 
           <TabsContent value="statistic" className="space-y-6">

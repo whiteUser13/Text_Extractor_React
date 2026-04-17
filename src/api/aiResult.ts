@@ -205,3 +205,184 @@ export async function getAIStatistics(
     }
   }
 }
+export async function getAIStatisticsByScene(
+  model: string,
+  task_id: string,
+  scene_id: string,
+  statType: string,
+  prompt: string,
+  customFields: string[],
+) {
+  try {
+    const res = await apiClient.post("api/airesult/ai/stats/byscene", {
+      model: model,
+      task_id: task_id,
+      scene_id: scene_id,
+      statType: statType,
+      prompt: prompt,
+      customFields: customFields,
+    })
+    if (res.status === 200) {
+      return { success: true, data: res.data.data, msg: "获取成功" }
+    } else {
+      return { success: false, data: [], msg: "获取失败" }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
+
+export async function saveStatsInTask(
+  task_id: string,
+  stats_name: string,
+  stats_prompt: string,
+  stats_result: Record<string, any>[],
+) {
+  try {
+    const res = await apiClient.post("api/airesult/save/stats/task", {
+      task_id: task_id,
+      stats_name: stats_name,
+      stats_prompt: stats_prompt,
+      stats_result: stats_result,
+    })
+    if (res.status === 200) {
+      return { success: true, msg: "保存成功" }
+    } else {
+      return { success: false, data: [], msg: "保存失败" }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
+
+export async function saveStatsInScene(
+  scene_id: string,
+  stats_name: string,
+  stats_prompt: string,
+  stats_result: Record<string, any>[],
+) {
+  try {
+    const res = await apiClient.post("api/airesult/save/stats/scene", {
+      scene_id: scene_id,
+      stats_name: stats_name,
+      stats_prompt: stats_prompt,
+      stats_result: stats_result,
+    })
+    if (res.status === 200) {
+      return { success: true, msg: "保存成功" }
+    } else {
+      return { success: false, data: [], msg: "保存失败" }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
+
+export interface SavedStatisticsItem {
+  stats_name: string
+  stats_prompt: string
+  stats_result: { name: string; value: number }[]
+}
+
+interface SavedStatisticsResult {
+  success: boolean
+  data: SavedStatisticsItem[]
+  msg: string
+}
+
+export async function getSavedStatsInTask(
+  task_id: string,
+): Promise<SavedStatisticsResult> {
+  try {
+    const res = await apiClient.get("api/airesult/get/stats/task", {
+      params: {
+        task_id,
+      },
+    })
+    if (res.status === 200) {
+      return { success: true, data: res.data.data?.data, msg: "获取成功" }
+    }
+    return { success: false, data: [], msg: "获取失败" }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
+
+export async function getSavedStatsInScene(
+  scene_id: string,
+): Promise<SavedStatisticsResult> {
+  try {
+    const res = await apiClient.get("api/airesult/get/stats/scene", {
+      params: {
+        scene_id,
+      },
+    })
+    if (res.status === 200) {
+      console.log(res)
+
+      return { success: true, data: res.data.data?.data, msg: "获取成功" }
+    }
+    return { success: false, data: [], msg: "获取失败" }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
+
+export async function generateWordBaseTaskStats(task_id: string) {
+  try {
+    const res = await apiClient.post("api/airesult/generate/word/task", {
+      task_id: task_id,
+    })
+    if (res.status === 200) {
+      return { success: true, data: res.data.data, msg: "生成成功" }
+    } else {
+      return { success: false, data: [], msg: "生成失败" }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
+export async function generateWordBaseSceneStats(
+  scene_id: string,
+  task_id: string,
+) {
+  try {
+    const res = await apiClient.post("api/airesult/generate/word/scene", {
+      scene_id: scene_id,
+      task_id: task_id,
+    })
+    if (res.status === 200) {
+      return { success: true, data: res.data.data, msg: "生成成功" }
+    } else {
+      return { success: false, data: [], msg: "生成失败" }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.msg || "网络错误",
+    }
+  }
+}
