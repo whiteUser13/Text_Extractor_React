@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
@@ -54,6 +54,7 @@ export type PDFDetailInfo = {
   ai_extracted_fields?: AIExtractedFieldItem[]
   judged_fields?: JudgedFiledItem[]
   ai_judged_fields?: JudgedFiledItem[]
+  is_correct?: string // "yes" | "no" | "unknown"
 }
 interface SubmitPayload {
   task_id: string
@@ -61,6 +62,7 @@ interface SubmitPayload {
   extraction_result: Record<string, string>
   judge_result: Record<string, string>
   page_idx: Record<string, number>
+  is_correct?: string // "yes" | "no" | "unknown"
 }
 
 interface FileDetailDialogProps {
@@ -71,6 +73,42 @@ interface FileDetailDialogProps {
   taskId: string
   onSubmitEdit?: (payload: SubmitPayload) => Promise<void> | void
 }
+
+const PdfViewer = React.memo(
+  ({ file, options, numPages, setNumPages, pageRefs, currentPage }: any) => {
+    return (
+      <Document
+        file={file}
+        options={options}
+        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+        loading={<div className="p-4">PDF 加载中.............</div>}>
+        {Array.from({ length: numPages }, (_, i) => {
+          const page = i + 1
+
+          return (
+            <div
+              key={page}
+              ref={(el) => {
+                pageRefs.current[page] = el
+              }}
+              className={`flex justify-center py-3 ${
+                currentPage === page ? "bg-blue-50" : ""
+              }`}>
+              <Page pageNumber={page} width={700} />
+            </div>
+          )
+        })}
+      </Document>
+    )
+  },
+  (prev, next) => {
+    // 👉 关键：只要 url 不变就不重新渲染 PDF
+    console.log(prev)
+    console.log(next)
+
+    return prev.file?.url === next.file?.url && prev.numPages === next.numPages
+  },
+)
 
 const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
   open,
@@ -104,12 +142,47 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
     return viewerPage - 1
   }
 
+  const pageRefs = useRef<Record<number, HTMLDivElement | null>>({})
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const pdfFile = useMemo(() => {
+    return detail?.pdf_url ? { url: detail.pdf_url } : null
+  }, [detail?.pdf_url])
+
+  const [isCorrect, setIsCorrect] = useState<string>("")
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop
+
+      let closestPage = 1
+      let minDiff = Infinity
+
+      Object.entries(pageRefs.current).forEach(([page, el]) => {
+        if (!el) return
+        const diff = Math.abs(el.offsetTop - scrollTop)
+        if (diff < minDiff) {
+          minDiff = diff
+          closestPage = Number(page)
+        }
+      })
+
+      setCurrentPdfPage(closestPage)
+    }
+
+    container.addEventListener("scroll", handleScroll)
+    return () => container.removeEventListener("scroll", handleScroll)
+  }, [])
+
   useEffect(() => {
     if (open) {
       setCurrentPdfPage(1)
       setNumPages(0)
       setEditableFields(detail?.extracted_fields ?? [])
       setEditableJudgedFields(detail?.judged_fields ?? [])
+      setIsCorrect(detail?.is_correct ?? "")
     }
   }, [open, detail])
 
@@ -133,12 +206,25 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
     }
     onOpenChange(nextOpen)
   }
-
   const handleLocateFieldPage = (rawPageNum: number) => {
     const viewerPage = rawPageToViewerPage(rawPageNum)
-    if (viewerPage === null) return
-    setCurrentPdfPage(viewerPage)
+    if (!viewerPage) return
+
+    const el = pageRefs.current[viewerPage]
+    if (el) {
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+      setCurrentPdfPage(viewerPage)
+    }
   }
+
+  // const handleLocateFieldPage = (rawPageNum: number) => {
+  //   const viewerPage = rawPageToViewerPage(rawPageNum)
+  //   if (viewerPage === null) return
+  //   setCurrentPdfPage(viewerPage)
+  // }
 
   const handleFieldValueChange = (index: number, value: string) => {
     setEditableFields((prev) =>
@@ -152,6 +238,19 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
       ),
     )
   }
+  // const handleFieldValueChange = useCallback((index: number, value: string) => {
+  //   setEditableFields((prev) => {
+  //     const next = [...prev]
+
+  //     // ✅ 只改目标项（避免 map 生成新结构）
+  //     next[index] = {
+  //       ...next[index],
+  //       field_value: value,
+  //     }
+
+  //     return next
+  //   })
+  // }, [])
 
   // 0324修改：输入框显示给用户的是 1-based 页码，存回后端时减 1
   const handlePageNumChange = (index: number, value: string) => {
@@ -218,6 +317,7 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
         extraction_result: buildExtractionResult(editableFields),
         judge_result: buildJudgeResult(editableJudgedFields),
         page_idx: buildPageNumResult(editableFields),
+        is_correct: isCorrect || "unknown",
       }
 
       const updateResult = await updateDetail(
@@ -226,6 +326,7 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
         payload.extraction_result,
         payload.judge_result,
         payload.page_idx,
+        payload.is_correct,
       )
 
       if (updateResult.success) {
@@ -250,6 +351,10 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
     }
   }
 
+  const handleCorrectChange = (value: string) => {
+    setIsCorrect(value)
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="!w-[80vw] !max-w-[80vw] h-[90vh] p-0 overflow-hidden">
@@ -270,72 +375,22 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
               <div className="text-sm text-slate-600">
                 第 {currentPdfPage} 页 / 共 {numPages || "-"} 页
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPdfPage <= 1}
-                  onClick={() =>
-                    setCurrentPdfPage((prev) => Math.max(prev - 1, 1))
-                  }>
-                  上一页
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={numPages === 0 || currentPdfPage >= numPages}
-                  onClick={() =>
-                    setCurrentPdfPage((prev) =>
-                      numPages ? Math.min(prev + 1, numPages) : prev,
-                    )
-                  }>
-                  下一页
-                </Button>
-              </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-6">
-              <div className="flex justify-center">
-                {loading ? (
-                  <div className="text-sm text-slate-500">详情加载中...</div>
-                ) : detail?.pdf_url ? (
-                  <Document
-                    file={{
-                      url: detail.pdf_url,
-                    }}
-                    options={{
-                      httpHeaders: {
-                        Authorization: `Bearer ${token}`,
-                      },
-                      withCredentials: true,
-                    }}
-                    onLoadSuccess={({ numPages }) => {
-                      setNumPages(numPages)
-                      if (currentPdfPage > numPages) {
-                        setCurrentPdfPage(1)
-                      }
-                    }}
-                    loading={
-                      <div className="text-sm text-slate-500">
-                        PDF 加载中...
-                      </div>
-                    }
-                    error={
-                      <div className="text-sm text-red-500">PDF 加载失败</div>
-                    }>
-                    <Page
-                      pageNumber={currentPdfPage}
-                      width={700}
-                      renderTextLayer
-                      renderAnnotationLayer
-                    />
-                  </Document>
-                ) : (
-                  <div className="text-sm text-slate-500">暂无 PDF</div>
-                )}
-              </div>
+            <div ref={containerRef} className="flex-1 overflow-auto">
+              <PdfViewer
+                file={pdfFile}
+                options={{
+                  httpHeaders: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                  withCredentials: true,
+                }}
+                numPages={numPages}
+                setNumPages={setNumPages}
+                pageRefs={pageRefs}
+                currentPage={currentPdfPage}
+              />
             </div>
           </div>
 
@@ -397,6 +452,9 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
                                     onChange={(e) =>
                                       handlePageNumChange(index, e.target.value)
                                     }
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onFocus={(e) => e.stopPropagation()}
                                     className="h-8 w-20"
                                   />
                                 </div>
@@ -467,10 +525,53 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
                           return (
                             <div
                               key={`${item.judged_name}-${index}`}
-                              className="rounded-xl border border-slate-200 p-4 transition hover:shadow-sm">
+                              className={`rounded-xl p-4 transition hover:shadow-sm ${
+                                item.judged_name.startsWith("最终违规判定")
+                                  ? "border-2 border-blue-500 bg-blue-50"
+                                  : "border border-slate-200"
+                              }`}>
                               <div className="text-sm font-semibold text-slate-700">
                                 {item.judged_name}
                               </div>
+                              {item.judged_name.startsWith("最终违规判定") && (
+                                <div className="mt-1 flex items-center gap-4 flex-wrap">
+                                  <span className="px-2 py-0.5 text-xs rounded-md bg-blue-500 text-white whitespace-nowrap">
+                                    最终结果
+                                  </span>
+
+                                  <div className="text-sm font-semibold text-blue-700 whitespace-nowrap">
+                                    ✅ 请确认：AI最终判定结果是否正确
+                                  </div>
+
+                                  <div className="flex items-center gap-6 text-sm">
+                                    <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                                      <input
+                                        type="radio"
+                                        name={`correct-${index}`}
+                                        value="yes"
+                                        checked={isCorrect === "yes"}
+                                        onChange={() =>
+                                          handleCorrectChange("yes")
+                                        }
+                                      />
+                                      <span>正确</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap">
+                                      <input
+                                        type="radio"
+                                        name={`correct-${index}`}
+                                        value="no"
+                                        checked={isCorrect === "no"}
+                                        onChange={() =>
+                                          handleCorrectChange("no")
+                                        }
+                                      />
+                                      <span>有误</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
 
                               <div className="mt-3 grid grid-cols-[80px_1fr] gap-2 text-sm">
                                 <div>

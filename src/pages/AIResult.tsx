@@ -37,6 +37,7 @@ import {
   type ClueItem,
   type RegionDistribution,
 } from "@/api/statistics"
+import { set } from "lodash"
 
 const SimplePieChart: React.FC<{
   data: Array<{ name: string; value: number; color: string }>
@@ -202,6 +203,7 @@ const AIResult: React.FC = () => {
   const [allFilelist, setAllFilelist] = useState<PDFFileInfo[]>([])
   const [keyword, setKeyword] = useState<string>("")
   const [violationFilter, setViolationFilter] = useState<string>("all")
+  const [reviewFilter, setReviewFilter] = useState<string>("all")
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [editDetailOpen, setEditDetailOpen] = useState(false)
@@ -255,6 +257,24 @@ const AIResult: React.FC = () => {
         return "bg-gray-500"
     }
   }
+  const getCheckStatusColor = (status: string): string => {
+    switch (status) {
+      case "yes":
+        return "bg-green-500"
+      case "no":
+        return "bg-green-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+  const getCheckStatusLabel = (status: string): string => {
+    const labels: Record<string, string> = {
+      yes: "已复核",
+      no: "已复核",
+      unknown: "未复核",
+    }
+    return labels[status] || status || "-"
+  }
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
@@ -295,6 +315,7 @@ const AIResult: React.FC = () => {
           page_idx: details.data.page_idx || {},
           judge_result: details.data.judge_result || {},
           ai_judged_fields: details.data.ai_judged_results || {},
+          is_correct: details.data.is_correct || "unknown",
         }
         const pdfDetail: PDFDetailInfo = {
           file_name: details.data.file_name,
@@ -303,6 +324,7 @@ const AIResult: React.FC = () => {
           ai_extracted_fields: [],
           judged_fields: [],
           ai_judged_fields: [],
+          is_correct: detail.is_correct || "unknown",
         }
         Object.keys(detail.extracted_fields).forEach((el) => {
           pdfDetail.extracted_fields?.push({
@@ -396,6 +418,18 @@ const AIResult: React.FC = () => {
   const fileTabColumns = [
     { key: "file_name", label: "文件名" },
     {
+      key: "is_correct",
+      label: "复核状态",
+      render: (value: string) => (
+        <div className="flex items-center gap-2">
+          <div
+            className={`w-2 h-2 rounded-full ${getCheckStatusColor(value)}`}
+          />
+          <span className="text-sm">{getCheckStatusLabel(value)}</span>
+        </div>
+      ),
+    },
+    {
       key: "status",
       label: "判别状态",
       render: (value: string) => (
@@ -440,11 +474,15 @@ const AIResult: React.FC = () => {
 
   const handleFilterChange = (value: string) => {
     setViolationFilter(value)
-    filterFiles(keyword, value)
+    filterFiles(keyword, value, reviewFilter)
+  }
+  const handleReviewedFilterChange = (value: string) => {
+    setReviewFilter(value)
+    filterFiles(keyword, violationFilter, value)
   }
 
   const handleSearch = () => {
-    filterFiles(keyword, violationFilter)
+    filterFiles(keyword, violationFilter, reviewFilter)
   }
 
   const cancelInput = () => {
@@ -453,7 +491,11 @@ const AIResult: React.FC = () => {
     setFilelist(allFilelist)
   }
 
-  const filterFiles = (searchKeyword: string, filterValue: string) => {
+  const filterFiles = (
+    searchKeyword: string,
+    filterValue: string,
+    reviewFilter: string,
+  ) => {
     const trimmedKeyword = searchKeyword.trim().toLowerCase()
     const safeFilelist = Array.isArray(allFilelist) ? allFilelist : []
 
@@ -465,7 +507,11 @@ const AIResult: React.FC = () => {
         filterValue === "all" ||
         (filterValue === "true" && item.valid === "illegal") ||
         (filterValue === "false" && item.valid === "legal")
-      return matchKeyword && matchViolation
+      const matchReview =
+        reviewFilter === "all" ||
+        (reviewFilter === "true" && item.is_correct !== "unknown") ||
+        (reviewFilter === "false" && item.is_correct === "unknown")
+      return matchKeyword && matchViolation && matchReview
     })
 
     setFilelist(filteredList)
@@ -480,6 +526,18 @@ const AIResult: React.FC = () => {
       false: "bg-green-500 text-white border-green-500 shadow-sm",
     }
     return violationFilter === value
+      ? `${base} ${activeMap[value]}`
+      : `${base} bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300`
+  }
+  const filterReviewButtonClass = (value: string) => {
+    const base =
+      "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border"
+    const activeMap: Record<string, string> = {
+      all: "bg-blue-500 text-white border-blue-500 shadow-sm",
+      true: "bg-red-500 text-white border-red-500 shadow-sm",
+      false: "bg-green-500 text-white border-green-500 shadow-sm",
+    }
+    return reviewFilter === value
       ? `${base} ${activeMap[value]}`
       : `${base} bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300`
   }
@@ -786,6 +844,8 @@ const AIResult: React.FC = () => {
         setLoading((prev) => ({ ...prev, files: true }))
         const result = await getFilesInfo(task_id)
         if (result.success && Array.isArray(result.data)) {
+          console.log(result.data)
+
           setAllFilelist(result.data)
           setFilelist(result.data)
         } else {
@@ -865,6 +925,28 @@ const AIResult: React.FC = () => {
                       onClick={() => handleFilterChange("false")}
                       className={filterButtonClass("false")}>
                       合规
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-4">
+                  <span className="text-sm font-medium text-slate-700">
+                    复核状态
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReviewedFilterChange("all")}
+                      className={filterReviewButtonClass("all")}>
+                      全部
+                    </button>
+                    <button
+                      onClick={() => handleReviewedFilterChange("true")}
+                      className={filterReviewButtonClass("true")}>
+                      已复核
+                    </button>
+                    <button
+                      onClick={() => handleReviewedFilterChange("false")}
+                      className={filterReviewButtonClass("false")}>
+                      未复核
                     </button>
                   </div>
                 </div>

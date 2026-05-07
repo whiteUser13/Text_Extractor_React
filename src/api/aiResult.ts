@@ -7,6 +7,7 @@ export interface PDFFileInfo {
   status: string
   valid: string
   judge_error?: string
+  is_correct?: string
 }
 export interface PDFFileDetails {
   file_name: string
@@ -15,6 +16,7 @@ export interface PDFFileDetails {
   page_idx: Record<string, number>
   judge_result: Record<string, string>
   ai_judged_results: Record<string, string>
+  is_correct?: string // "yes" | "no" | "unknown"
 }
 interface DetailResult {
   success: boolean
@@ -83,6 +85,7 @@ export async function getFileDetailsByName(
         page_idx: {},
         judge_result: {},
         ai_judged_results: {},
+        is_correct: "unknown",
       }
       return { success: false, data: pdfDetail, msg: "获取失败" }
     }
@@ -94,6 +97,7 @@ export async function getFileDetailsByName(
       page_idx: {},
       judge_result: {},
       ai_judged_results: {},
+      is_correct: "unknown",
     }
     return {
       success: false,
@@ -149,6 +153,7 @@ export async function updateDetail(
   extraction_result: Record<string, string>,
   judge_result: Record<string, string>,
   page_idx: Record<string, number>,
+  is_correct: string = "unknown",
 ) {
   try {
     const res = await apiClient.post("api/airesult/review", {
@@ -157,6 +162,7 @@ export async function updateDetail(
       extraction_result: extraction_result,
       judge_result: judge_result,
       page_idx: page_idx,
+      is_correct: is_correct,
     })
     if (res.status === 200) {
       return { success: true, msg: "修改成功" }

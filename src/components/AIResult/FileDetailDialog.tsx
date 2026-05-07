@@ -40,6 +40,7 @@ export type PDFDetailInfo = {
   ai_extracted_fields?: AIExtractedFieldItem[]
   judged_fields?: JudgedFiledItem[]
   ai_judged_fields?: JudgedFiledItem[]
+  is_correct?: string // "yes" | "no" | "unknown"
 }
 
 interface FileDetailDialogProps {
