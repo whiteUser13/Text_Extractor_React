@@ -333,6 +333,10 @@ const EditDetailDialog: React.FC<FileDetailDialogProps> = ({
         toast({
           title: updateResult.msg,
         })
+        // 调用提交成功回调
+        if (onSubmitEdit) {
+          await onSubmitEdit(payload)
+        }
       } else {
         toast({
           title: updateResult.msg,

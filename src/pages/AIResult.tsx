@@ -235,6 +235,7 @@ const AIResult: React.FC = () => {
     region: false,
     files: false,
   })
+  const [sceneAllFilelist, setSceneAllFilelist] = useState<PDFFileInfo[]>([])
 
   const pieColors = [
     "#f87171",
@@ -441,12 +442,33 @@ const AIResult: React.FC = () => {
     },
     {
       key: "valid",
-      label: "是否违规",
-      render: (value: string) => (
-        <Badge className={getValidStatusBgcolor(value)}>
-          {getValidStatusLabel(value)}
-        </Badge>
-      ),
+      label: "是否违规（AI/人工）",
+      render: (_: any, record: PDFFileInfo) => {
+        const aiResult = record.valid
+        const isCorrect = record.is_correct || "unknown"
+
+        // 计算人工结果
+        let humanResult: string
+        if (isCorrect === "no") {
+          // 人工结果与AI结果相反
+          humanResult = aiResult === "legal" ? "illegal" : aiResult === "illegal" ? "legal" : "unknown"
+        } else {
+          // isCorrect为"yes"或"unknown"时，人工结果与AI结果相同
+          humanResult = aiResult
+        }
+
+        return (
+          <div className="flex items-center gap-1">
+            <Badge className={getValidStatusBgcolor(aiResult)}>
+              {getValidStatusLabel(aiResult)}
+            </Badge>
+            <span className="text-slate-400">/</span>
+            <Badge className={getValidStatusBgcolor(humanResult)}>
+              {getValidStatusLabel(humanResult)}
+            </Badge>
+          </div>
+        )
+      },
     },
     {
       key: "actions",
@@ -503,10 +525,23 @@ const AIResult: React.FC = () => {
       const fileName = item.file_name || ""
       const matchKeyword =
         !trimmedKeyword || fileName.toLowerCase().includes(trimmedKeyword)
+
+      // 计算人工结果
+      const isCorrect = item.is_correct || "unknown"
+      let humanResult: string
+      if (isCorrect === "no") {
+        // 人工结果与AI结果相反
+        humanResult = item.valid === "legal" ? "illegal" : item.valid === "illegal" ? "legal" : "unknown"
+      } else {
+        // isCorrect为"yes"或"unknown"时，人工结果与AI结果相同
+        humanResult = item.valid
+      }
+
       const matchViolation =
         filterValue === "all" ||
-        (filterValue === "true" && item.valid === "illegal") ||
-        (filterValue === "false" && item.valid === "legal")
+        (filterValue === "true" && humanResult === "illegal") ||
+        (filterValue === "false" && humanResult === "legal")
+
       const matchReview =
         reviewFilter === "all" ||
         (reviewFilter === "true" && item.is_correct !== "unknown") ||
@@ -870,12 +905,82 @@ const AIResult: React.FC = () => {
     if (activeTab == "statistic") {
       // 获取当前任务的sceneId
       const currentSceneId = selectedTask?.sceneId
-      // 如果sceneId无效（空、undefined、"default"等），则只使用taskId进行单任务统计
+      // 如果sceneId无效（空、undefined,"default"等），则只使用taskId进行单任务统计
       const validSceneId =
         currentSceneId && currentSceneId.trim() ? currentSceneId : undefined
       loadAllStatistics(selectedTaskId, filelist, validSceneId, regionViewMode)
     }
   }, [selectedTaskId, activeTab, regionViewMode])
+
+  useEffect(() => {
+    const currentSceneId = selectedTask?.sceneId
+    const validSceneId =
+      currentSceneId && currentSceneId.trim() ? currentSceneId : undefined
+
+    if (activeTab !== "statistic") {
+      return
+    }
+
+    console.log("当前场景模式: all, validSceneId:", validSceneId)
+
+    if (!validSceneId) {
+      setSceneAllFilelist([])
+      return
+    }
+
+    const loadSceneFilesInfo = async (scene_id: string) => {
+      try {
+        setLoading((prev) => ({ ...prev, files: true }))
+        // 修改前: const result = await getFilesInfo(undefined, scene_id)
+        // 修改后: 正确传递 scene_id 作为第二个参数（或者根据新API定义传递）
+        const result = await getFilesInfo(undefined, scene_id)
+        
+        if (result.success && Array.isArray(result.data)) {
+          console.log("场景文件列表:", result.data)
+          setSceneAllFilelist(result.data)
+        } else {
+          console.error("获取场景文件列表失败:", result.msg)
+          setSceneAllFilelist([])
+        }
+      } catch (error) {
+        console.error("获取场景文件列表失败:", error)
+        setSceneAllFilelist([])
+      } finally {
+        setLoading((prev) => ({ ...prev, files: false }))
+      }
+    }
+    loadSceneFilesInfo(validSceneId)
+  }, [selectedTask?.sceneId, selectedTaskId, activeTab, regionViewMode])
+
+  // 计算AI判别违规总数和人工判别违规总数
+  const calculateViolationCounts = () => {
+    let aiIllegalTotal = 0;
+    let manualIllegalTotal = 0;
+
+    const filesToCount =
+      regionViewMode === "all" ? sceneAllFilelist : allFilelist;
+
+    filesToCount.forEach((file) => {
+      // AI判别违规总数: valid == "illegal"
+      if (file.valid === "illegal") {
+        aiIllegalTotal++
+      }
+
+      // 人工判别违规总数:
+      // 情况1: AI说违规(valid="illegal")且人工确认正确(is_correct="yes")
+      // 情况2: AI说合规(valid="legal")且人工确认有误(is_correct="no")
+      if (
+        (file.valid === "illegal" && file.is_correct === "yes") ||
+        (file.valid === "legal" && file.is_correct === "no")
+      ) {
+        manualIllegalTotal++
+      }
+    })
+
+    return { aiIllegalTotal, manualIllegalTotal }
+  }
+
+  const { aiIllegalTotal, manualIllegalTotal } = calculateViolationCounts()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -908,7 +1013,7 @@ const AIResult: React.FC = () => {
 
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-slate-700">
-                    是否违规：
+                    是否违规（人工）：
                   </span>
                   <div className="flex gap-2">
                     <button
@@ -1151,24 +1256,17 @@ const AIResult: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="text-xs text-slate-500">违规总数</div>
+                          <div className="text-xs text-slate-500">AI判别违规总数</div>
                           <div className="text-base font-bold text-red-600">
-                            {displayedRegionData.reduce(
-                              (sum, r) => sum + r.illegal_count,
-                              0,
-                            )}
+                            {aiIllegalTotal}
                           </div>
                         </div>
                         <div className="text-center">
                           <div className="text-xs text-slate-500">
-                            违规中重点行业数量
+                            人工审核后违规总数
                           </div>
                           <div className="text-base font-bold text-orange-600">
-                            {displayedRegionData.reduce(
-                              (sum, r) =>
-                                sum + (r.industry_violation_count || 0),
-                              0,
-                            )}
+                            {manualIllegalTotal}
                           </div>
                         </div>
                       </div>

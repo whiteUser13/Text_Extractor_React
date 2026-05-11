@@ -42,26 +42,45 @@ interface PathResult {
 }
 
 // 根据task_id获取文件信息，包括文件名，判别状态，是否合规等内容
-export async function getFilesInfo(task_id: string): Promise<FileResult> {
+// e:\system\Text_Extractor_React\src\api\aiResult.ts
+
+// ... 其他代码 ...
+
+// 根据task_id或scene_id获取文件信息
+export async function getFilesInfo(
+  task_id?: string, 
+  scene_id?: string
+): Promise<FileResult> {
   try {
+    // 构建参数对象，只包含存在的值
+    const params: any = {};
+    if (task_id) params.task_id = task_id;
+    if (scene_id) params.scene_id = scene_id;
+
+    // 如果两个都没有，直接返回空，避免请求报错
+    if (!task_id && !scene_id) {
+      return { success: true, data: [], msg: "No ID provided" };
+    }
+
     const res = await apiClient.get("api/airesult/file/info", {
-      params: {
-        task_id: task_id,
-      },
-    })
+      params: params,
+    });
+
     if (res.status === 200) {
-      return { success: true, data: res.data, msg: res.data.judge_error }
+      return { success: true, data: res.data, msg: "" };
     } else {
-      return { success: false, data: [], msg: res.data.error }
+      return { success: false, data: [], msg: res.data?.msg || "获取失败" };
     }
   } catch (error: any) {
     return {
       success: false,
       data: [],
-      msg: error.response?.data?.message || "网络错误",
-    }
+      msg: error.response?.data?.message || error.response?.data?.msg || "网络错误",
+    };
   }
 }
+
+// ... 其他代码 ...
 
 // 根据文件名和task_id获取文件的提取和判别信息
 export async function getFileDetailsByName(
