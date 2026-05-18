@@ -24,6 +24,7 @@ const TaskManagementPage: React.FC = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
   const [tasksRefreshKey, setTasksRefreshKey] = useState(0)
+  const [activeSection, setActiveSection] = useState<"active" | "deleted">("active")
   const [isOpenCreateTaskDialog, setIsOpenCreateTaskDialog] = useState(false)
   const [scene, setScene] = useState<any>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -155,6 +156,20 @@ const TaskManagementPage: React.FC = () => {
                   创建和管理审核任务，配置提取规则和判别规则
                 </CardDescription>
               </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={activeSection === "active" ? "default" : "outline"}
+                  onClick={() => setActiveSection("active")}
+                >
+                  现有任务
+                </Button>
+                <Button
+                  variant={activeSection === "deleted" ? "default" : "outline"}
+                  onClick={() => setActiveSection("deleted")}
+                >
+                  已删除任务
+                </Button>
+              </div>
               <Button
                 onClick={() => setIsOpenCreateTaskDialog(true)}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600">
@@ -171,8 +186,11 @@ const TaskManagementPage: React.FC = () => {
           <CardContent>
             <div className="min-h-[200px]">
               <TaskList
-                key={tasksRefreshKey}
+                key={`${tasksRefreshKey}-${activeSection}`}
                 onTasksChange={handleTaskCreated}
+                sceneId={sceneId}
+                sceneName={scene?.name}
+                isDeletedTasks={activeSection === "deleted"}
               />
             </div>
           </CardContent>

@@ -39,6 +39,7 @@ const Dashboard: React.FC = () => {
 
   const [isAdmin, setIsAdmin] = useState(true) // 模拟管理员权限
   const [tasksRefreshKey, setTasksRefreshKey] = useState(0)
+  const [activeSection, setActiveSection] = useState<"active" | "deleted">("active")
   const [isLoading, setIsLoading] = useState(false)
   const [sceneName, setSceneName] = useState<string>("")
 
@@ -153,28 +154,43 @@ const Dashboard: React.FC = () => {
                       创建和管理审核任务，配置提取规则和判别规则
                     </CardDescription>
                   </div>
+                <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => setIsOpenCreateTaskDialog(true)}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                    新建任务
+                    variant={activeSection === "active" ? "default" : "outline"}
+                    onClick={() => setActiveSection("active")}
+                  >
+                    现有任务
                   </Button>
-                  <CreateTaskDialog
-                    isOpen={isOpenCreateTaskDialog}
-                    onOpenChange={setIsOpenCreateTaskDialog}
-                    onTaskCreated={handleTaskCreated}
-                    type="create"
-                    sceneId={sceneId}
-                    sceneName={sceneName}
-                  />
+                  <Button
+                    variant={activeSection === "deleted" ? "default" : "outline"}
+                    onClick={() => setActiveSection("deleted")}
+                  >
+                    已删除任务
+                  </Button>
                 </div>
+                <Button
+                  onClick={() => setIsOpenCreateTaskDialog(true)}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  新建任务
+                </Button>
+                <CreateTaskDialog
+                  isOpen={isOpenCreateTaskDialog}
+                  onOpenChange={setIsOpenCreateTaskDialog}
+                  onTaskCreated={handleTaskCreated}
+                  type="create"
+                  sceneId={sceneId}
+                  sceneName={sceneName}
+                />
+              </div>
               </CardHeader>
               <CardContent>
                 <div className="min-h-[200px]">
                   <TaskList
-                    key={tasksRefreshKey}
+                    key={`${tasksRefreshKey}-${activeSection}`}
                     onTasksChange={handleTaskCreated}
                     sceneId={sceneId}
                     sceneName={sceneName}
+                    isDeletedTasks={activeSection === "deleted"}
                   />
                 </div>
               </CardContent>

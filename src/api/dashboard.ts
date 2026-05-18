@@ -11,6 +11,20 @@ interface MessageResult {
   msg: string
 }
 
+interface DeletedTask {
+  id: string
+  name: string
+  sceneId?: string
+  deleted_at?: string
+  downloadUrl?: string
+}
+
+interface DeletedTaskResult {
+  success: boolean
+  data: DeletedTask[]
+  msg: string
+}
+
 // 添加任务
 export async function addTask(task: Task): Promise<TaskResult> {
   try {
@@ -62,6 +76,42 @@ export async function getTaskList(): Promise<TaskResult> {
     }
   }
 }
+
+export async function getDeletedTaskList(sceneId?: string): Promise<DeletedTaskResult> {
+  try {
+    const url = sceneId ? `/api/task/deleted?sceneId=${encodeURIComponent(sceneId)}` : "/api/task/deleted"
+    const res = await apiClient.get(url)
+    if (res.status === 200) {
+      return { success: true, data: res.data.tasks, msg: res.data.msg || "" }
+    } else {
+      return { success: false, data: [], msg: res.data.error }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      data: [],
+      msg: error.response?.data?.message || "网络错误",
+    }
+  }
+}
+
+export async function deleteTaskWithExcelRetention(id: string, keepExcel: boolean): Promise<MessageResult> {
+  try {
+    const url = `/api/task/delete/${id}?keepExcel=${keepExcel ? "true" : "false"}`
+    const res = await apiClient.delete(url)
+    if (res.status === 200) {
+      return { success: true, msg: res.data.message }
+    } else {
+      return { success: false, msg: res.data.error }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      msg: error.response?.data?.message || "网络错误",
+    }
+  }
+}
+
 // 根据id删除任务
 export async function deleteTaskByID(id: string): Promise<MessageResult> {
   try {
