@@ -166,13 +166,26 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
     }
   }
   const getGroupName = (group: string) => {
-    if (group == "env_department") {
-      return "环境部"
-    } else if (group == "soil_department") {
-      return "土壤司"
-    } else {
+    if (!group) {
       return "未知"
     }
+    
+    // 处理标准代码值
+    if (group === "env_department") {
+      return "环境部"
+    } else if (group === "soil_department") {
+      return "土壤司"
+    }
+    
+    // 处理实际部门名称及其简称
+    if (group.includes("环境") || group.includes("生态")) {
+      return "环境部"
+    } else if (group.includes("土壤")) {
+      return "土壤司"
+    }
+    
+    // 如果是未知值，返回实际的部门名称而不是"未知"
+    return group
   }
 
   const handleDownloadClick = async (downloadUrl: string, taskName: string) => {
@@ -261,6 +274,8 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                     <>
                       <TableHead>任务名称</TableHead>
                       <TableHead>任务ID</TableHead>
+                      <TableHead>用户组</TableHead>
+                      <TableHead>共享</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </>
                   ) : (
@@ -283,6 +298,12 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                       <>
                         <TableCell className="font-medium">{task.name}</TableCell>
                         <TableCell>{task.id}</TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {getGroupName(task.group_name ?? "unknown")}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {task.share ? "共享" : "个人"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {task.downloadUrl ? (

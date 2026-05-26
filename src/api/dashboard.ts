@@ -15,6 +15,8 @@ interface DeletedTask {
   id: string
   name: string
   sceneId?: string
+  group_name?: string
+  share?: boolean
   deleted_at?: string
   downloadUrl?: string
 }
@@ -119,6 +121,24 @@ export async function deleteTaskByID(id: string): Promise<MessageResult> {
     if (res.status === 200) {
       console.log(res.data.tasks)
 
+      return { success: true, msg: res.data.message }
+    } else {
+      return { success: false, msg: res.data.error }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      msg: error.response?.data?.message || "网络错误",
+    }
+  }
+}
+
+export async function deleteDeletedTaskFiles(
+  sceneTask: string,
+): Promise<MessageResult> {
+  try {
+    const res = await apiClient.delete(`/api/task/deleted-files/${sceneTask}`)
+    if (res.status === 200) {
       return { success: true, msg: res.data.message }
     } else {
       return { success: false, msg: res.data.error }

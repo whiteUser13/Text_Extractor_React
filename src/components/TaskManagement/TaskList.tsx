@@ -33,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { CreateTaskDialog } from "@/components/TaskManagement"
-import { deleteTaskByID, getDeletedTaskList } from "@/api/dashboard"
+import { deleteDeletedTaskFiles, deleteTaskByID, getDeletedTaskList } from "@/api/dashboard"
 import { useTaskStore } from "@/context/TaskContext"
 import { getTokenStore } from "@/utils/store"
 
@@ -122,24 +122,121 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
         variant: "destructive",
       })
     } else {
-      deleteTaskByID(taskId).then((result) => {
-        if (result.success) {
-          dataService.deleteTask(taskId)
-          loadTasks()
-          if (onTasksChange) {
-            onTasksChange()
+      // Check whether task has result files. If none, remove from UI immediately
+      // and let backend continue its cleanup asynchronously.
+      import("@/api/statistics").then(({ getTaskStatistics }) => {
+        getTaskStatistics(taskId).then((stat) => {
+          try {
+            const hasFiles = stat.success && stat.data && stat.data.total_files > 0
+
+            if (!hasFiles) {
+              // Optimistically remove from local store and UI
+              dataService.deleteTask(taskId)
+              setTasks((prev) => prev.filter((t) => t.id !== taskId))
+              if (onTasksChange) onTasksChange()
+              toast({ title: "成功", description: "任务已删除" })
+
+              // Fire-and-forget backend delete
+              deleteTaskByID(taskId).then((result) => {
+                if (!result.success) {
+                  toast({
+                    title: "后台删除失败",
+                    description: result.msg,
+                    variant: "destructive",
+                  })
+                }
+              }).catch((err) => {
+                console.error("删除任务接口出错:", err)
+              })
+            } else {
+              // Task has result files, perform normal delete flow (wait for server)
+              deleteTaskByID(taskId).then((result) => {
+                if (result.success) {
+                  dataService.deleteTask(taskId)
+                  loadTasks()
+                  if (onTasksChange) {
+                    onTasksChange()
+                  }
+                  toast({
+                    title: "成功",
+                    description: "任务已删除",
+                  })
+                } else {
+                  toast({
+                    title: "删除任务失败",
+                    description: result.msg,
+                    variant: "destructive",
+                  })
+                }
+              }).catch((err) => {
+                console.error("删除任务接口出错:", err)
+                toast({
+                  title: "删除任务失败",
+                  description: "网络或服务器错误",
+                  variant: "destructive",
+                })
+              })
+            }
+          } catch (error) {
+            console.error("检查任务文件数出错:", error)
+            // Fallback to normal delete if stats check fails
+            deleteTaskByID(taskId).then((result) => {
+              if (result.success) {
+                dataService.deleteTask(taskId)
+                loadTasks()
+                if (onTasksChange) {
+                  onTasksChange()
+                }
+                toast({
+                  title: "成功",
+                  description: "任务已删除",
+                })
+              } else {
+                toast({
+                  title: "删除任务失败",
+                  description: result.msg,
+                  variant: "destructive",
+                })
+              }
+            }).catch((err) => {
+              console.error("删除任务接口出错:", err)
+              toast({
+                title: "删除任务失败",
+                description: "网络或服务器错误",
+                variant: "destructive",
+              })
+            })
           }
-          toast({
-            title: "成功",
-            description: "任务已删除",
+        }).catch((err) => {
+          console.error("获取统计信息失败:", err)
+          // If we can't get stats, fallback to default delete behavior
+          deleteTaskByID(taskId).then((result) => {
+            if (result.success) {
+              dataService.deleteTask(taskId)
+              loadTasks()
+              if (onTasksChange) {
+                onTasksChange()
+              }
+              toast({
+                title: "成功",
+                description: "任务已删除",
+              })
+            } else {
+              toast({
+                title: "删除任务失败",
+                description: result.msg,
+                variant: "destructive",
+              })
+            }
+          }).catch((err2) => {
+            console.error("删除任务接口出错:", err2)
+            toast({
+              title: "删除任务失败",
+              description: "网络或服务器错误",
+              variant: "destructive",
+            })
           })
-        } else {
-          toast({
-            title: "删除任务失败",
-            description: result.msg,
-            variant: "destructive",
-          })
-        }
+        })
       })
     }
   }
@@ -166,13 +263,26 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
     }
   }
   const getGroupName = (group: string) => {
-    if (group == "env_department") {
-      return "环境部"
-    } else if (group == "soil_department") {
-      return "土壤司"
-    } else {
+    if (!group) {
       return "未知"
     }
+    
+    // 处理标准代码值
+    if (group === "env_department") {
+      return "环境部"
+    } else if (group === "soil_department") {
+      return "土壤司"
+    }
+    
+    // 处理实际部门名称及其简称
+    if (group.includes("环境") || group.includes("生态")) {
+      return "环境部"
+    } else if (group.includes("土壤")) {
+      return "土壤司"
+    }
+    
+    // 如果是未知值，返回实际的部门名称而不是"未知"
+    return group
   }
 
   const handleDownloadClick = async (downloadUrl: string, taskName: string) => {
@@ -237,6 +347,28 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
     }
   }
 
+  const handleDeleteDeletedTaskFiles = async (
+    sceneTask: string,
+    taskId?: string,
+  ) => {
+    try {
+      const result = await deleteDeletedTaskFiles(sceneTask)
+      if (result.success) {
+        toast({ title: "已删除", description: "结果文件已永久删除" })
+        if (taskId) {
+          setTasks((prev) => prev.filter((task) => task.id !== taskId))
+        } else {
+          loadTasks()
+        }
+      } else {
+        toast({ title: "删除失败", description: result.msg, variant: "destructive" })
+      }
+    } catch (error) {
+      console.error("永久删除已删除任务结果文件失败:", error)
+      toast({ title: "删除失败", description: "网络或服务器错误", variant: "destructive" })
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -261,6 +393,8 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                     <>
                       <TableHead>任务名称</TableHead>
                       <TableHead>任务ID</TableHead>
+                      <TableHead>用户组</TableHead>
+                      <TableHead>共享</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </>
                   ) : (
@@ -283,6 +417,12 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                       <>
                         <TableCell className="font-medium">{task.name}</TableCell>
                         <TableCell>{task.id}</TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {getGroupName(task.group_name ?? "unknown")}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {task.share ? "共享" : "个人"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {task.downloadUrl ? (
@@ -296,6 +436,35 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                             ) : (
                               <span className="text-sm text-gray-500">无文件</span>
                             )}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-500"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>确认永久删除</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    是否确认永久删除已删除任务 "{task.name}" 的结果文件？
+                                    删除后无法恢复。
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>取消</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteDeletedTaskFiles(task.sceneId + "_" + task.id, task.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    删除
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </TableCell>
                       </>

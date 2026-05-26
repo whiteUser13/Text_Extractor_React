@@ -7,6 +7,7 @@ export interface PDFFileInfo {
   status: string
   valid: string
   judge_error?: string
+  is_reviewed?: boolean
   is_correct?: string
 }
 export interface PDFFileDetails {
@@ -16,6 +17,7 @@ export interface PDFFileDetails {
   page_idx: Record<string, number>
   judge_result: Record<string, string>
   ai_judged_results: Record<string, string>
+  is_reviewed?: boolean
   is_correct?: string // "yes" | "no" | "unknown"
 }
 interface DetailResult {

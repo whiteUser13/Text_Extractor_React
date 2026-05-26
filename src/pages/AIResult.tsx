@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import DataList from "@/components/FileUpload/DataList"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,6 +12,7 @@ import {
   MapPin,
   ListChecks,
 } from "lucide-react"
+import * as XLSX from "xlsx"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { useTaskStore } from "@/context/TaskContext"
@@ -37,7 +37,6 @@ import {
   type ClueItem,
   type RegionDistribution,
 } from "@/api/statistics"
-import { set } from "lodash"
 
 const SimplePieChart: React.FC<{
   data: Array<{ name: string; value: number; color: string }>
@@ -203,6 +202,8 @@ const AIResult: React.FC = () => {
   const [allFilelist, setAllFilelist] = useState<PDFFileInfo[]>([])
   const [keyword, setKeyword] = useState<string>("")
   const [violationFilter, setViolationFilter] = useState<string>("all")
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([])
   const [reviewFilter, setReviewFilter] = useState<string>("all")
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -258,23 +259,11 @@ const AIResult: React.FC = () => {
         return "bg-gray-500"
     }
   }
-  const getCheckStatusColor = (status: string): string => {
-    switch (status) {
-      case "yes":
-        return "bg-green-500"
-      case "no":
-        return "bg-green-500"
-      default:
-        return "bg-gray-500"
-    }
+  const getReviewStatusColor = (isReviewed: boolean): string => {
+    return isReviewed ? "bg-green-500" : "bg-gray-500"
   }
-  const getCheckStatusLabel = (status: string): string => {
-    const labels: Record<string, string> = {
-      yes: "已复核",
-      no: "已复核",
-      unknown: "未复核",
-    }
-    return labels[status] || status || "-"
+  const getReviewStatusLabel = (isReviewed: boolean): string => {
+    return isReviewed ? "已复核" : "未复核"
   }
 
   const getStatusLabel = (status: string): string => {
@@ -317,6 +306,7 @@ const AIResult: React.FC = () => {
           judge_result: details.data.judge_result || {},
           ai_judged_fields: details.data.ai_judged_results || {},
           is_correct: details.data.is_correct || "unknown",
+          is_reviewed: details.data.is_reviewed ?? false,
         }
         const pdfDetail: PDFDetailInfo = {
           file_name: details.data.file_name,
@@ -326,6 +316,7 @@ const AIResult: React.FC = () => {
           judged_fields: [],
           ai_judged_fields: [],
           is_correct: detail.is_correct || "unknown",
+          is_reviewed: detail.is_reviewed,
         }
         Object.keys(detail.extracted_fields).forEach((el) => {
           pdfDetail.extracted_fields?.push({
@@ -417,18 +408,46 @@ const AIResult: React.FC = () => {
   }
 
   const fileTabColumns = [
+    ...(selectionMode
+      ? [
+          {
+            key: "selection",
+            label: "",
+            tdClassName: "w-12 text-center",
+            render: (_: any, record: PDFFileInfo) => (
+              <input
+                type="checkbox"
+                checked={selectedFiles.includes(record.file_name)}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setSelectedFiles((prev) =>
+                    checked
+                      ? [...prev, record.file_name]
+                      : prev.filter((name) => name !== record.file_name),
+                  )
+                }}
+              />
+            ),
+          },
+        ]
+      : []),
     { key: "file_name", label: "文件名" },
     {
-      key: "is_correct",
+      key: "is_reviewed",
       label: "复核状态",
-      render: (value: string) => (
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${getCheckStatusColor(value)}`}
-          />
-          <span className="text-sm">{getCheckStatusLabel(value)}</span>
-        </div>
-      ),
+      render: (_: any, record: PDFFileInfo) => {
+        const isReviewed = record.is_reviewed ?? false
+        return (
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2 h-2 rounded-full ${getReviewStatusColor(
+                isReviewed,
+              )}`}
+            />
+            <span className="text-sm">{getReviewStatusLabel(isReviewed)}</span>
+          </div>
+        )
+      },
     },
     {
       key: "status",
@@ -496,7 +515,32 @@ const AIResult: React.FC = () => {
 
   const handleFilterChange = (value: string) => {
     setViolationFilter(value)
+    if (value !== "unknown") {
+      setSelectionMode(false)
+      setSelectedFiles([])
+    }
     filterFiles(keyword, value, reviewFilter)
+  }
+  const handleExportLandCodes = () => {
+    if (selectedFiles.length === 0) {
+      toast({ title: "请选择要导出的文件", variant: "destructive" })
+      return
+    }
+
+    const landCodes = selectedFiles.map((fileName) => {
+      const index = fileName.indexOf("_")
+      return index > 0 ? fileName.slice(0, index) : fileName
+    })
+
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["地块编码"],
+      ...landCodes.map((code) => [code]),
+    ])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1")
+    const taskName = selectedTask?.name || selectedTaskId || "未知"
+    const fileName = `${taskName}_未知.xlsx`
+    XLSX.writeFile(wb, fileName)
   }
   const handleReviewedFilterChange = (value: string) => {
     setReviewFilter(value)
@@ -517,9 +561,14 @@ const AIResult: React.FC = () => {
     searchKeyword: string,
     filterValue: string,
     reviewFilter: string,
+    sourceList?: PDFFileInfo[],
   ) => {
     const trimmedKeyword = searchKeyword.trim().toLowerCase()
-    const safeFilelist = Array.isArray(allFilelist) ? allFilelist : []
+    const safeFilelist = Array.isArray(sourceList)
+      ? sourceList
+      : Array.isArray(allFilelist)
+      ? allFilelist
+      : []
 
     const filteredList = safeFilelist.filter((item) => {
       const fileName = item.file_name || ""
@@ -540,12 +589,14 @@ const AIResult: React.FC = () => {
       const matchViolation =
         filterValue === "all" ||
         (filterValue === "true" && humanResult === "illegal") ||
-        (filterValue === "false" && humanResult === "legal")
+        (filterValue === "false" && humanResult === "legal") ||
+        (filterValue === "unknown" && item.valid === "unknown" && isCorrect === "unknown")
 
+      const isReviewed = item.is_reviewed ?? false
       const matchReview =
         reviewFilter === "all" ||
-        (reviewFilter === "true" && item.is_correct !== "unknown") ||
-        (reviewFilter === "false" && item.is_correct === "unknown")
+        (reviewFilter === "true" && isReviewed) ||
+        (reviewFilter === "false" && !isReviewed)
       return matchKeyword && matchViolation && matchReview
     })
 
@@ -559,6 +610,7 @@ const AIResult: React.FC = () => {
       all: "bg-blue-500 text-white border-blue-500 shadow-sm",
       true: "bg-red-500 text-white border-red-500 shadow-sm",
       false: "bg-green-500 text-white border-green-500 shadow-sm",
+      unknown: "bg-yellow-500 text-white border-yellow-500 shadow-sm",
     }
     return violationFilter === value
       ? `${base} ${activeMap[value]}`
@@ -873,29 +925,30 @@ const AIResult: React.FC = () => {
   const displayedRegionData =
     regionViewMode === "current" ? currentTaskRegionData : regionData // 0317修改：统计页增加“当前任务/全部任务”视图
 
-  useEffect(() => {
-    const loadFilesInfo = async (task_id: string) => {
-      try {
-        setLoading((prev) => ({ ...prev, files: true }))
-        const result = await getFilesInfo(task_id)
-        if (result.success && Array.isArray(result.data)) {
-          console.log(result.data)
+  const loadFilesInfo = async (task_id: string) => {
+    try {
+      setLoading((prev) => ({ ...prev, files: true }))
+      const result = await getFilesInfo(task_id)
+      if (result.success && Array.isArray(result.data)) {
+        console.log(result.data)
 
-          setAllFilelist(result.data)
-          setFilelist(result.data)
-        } else {
-          console.error("获取任务列表失败:", result.msg)
-          setAllFilelist([])
-          setFilelist([])
-        }
-      } catch (error) {
-        console.error("获取文件列表出错:", error)
+        setAllFilelist(result.data)
+        filterFiles(keyword, violationFilter, reviewFilter, result.data)
+      } else {
+        console.error("获取任务列表失败:", result.msg)
         setAllFilelist([])
         setFilelist([])
-      } finally {
-        setLoading((prev) => ({ ...prev, files: false }))
       }
+    } catch (error) {
+      console.error("获取文件列表出错:", error)
+      setAllFilelist([])
+      setFilelist([])
+    } finally {
+      setLoading((prev) => ({ ...prev, files: false }))
     }
+  }
+
+  useEffect(() => {
     if (activeTab == "preview") {
       if (selectedTaskId) {
         loadFilesInfo(selectedTaskId)
@@ -952,33 +1005,61 @@ const AIResult: React.FC = () => {
     loadSceneFilesInfo(validSceneId)
   }, [selectedTask?.sceneId, selectedTaskId, activeTab, regionViewMode])
 
+  // 打印违规文件名，当切换到复核界面时
+  useEffect(() => {
+    if (activeTab === 'statistic') {
+      // 等待数据加载完成后打印
+      setTimeout(() => {
+        const filesToCheck = regionViewMode === "all" ? sceneAllFilelist : allFilelist;
+        
+        const violatingFiles = filesToCheck.filter(file => {
+          const isValidLegal = file.valid === "legal";
+          const isValidIllegal = file.valid === "illegal";
+          const isCorrectNo = file.is_correct === "no";
+          const isCorrectYes = file.is_correct === "yes";
+          const isCorrectUnknown = file.is_correct === "unknown" || file.is_correct === undefined;
+
+          return (isValidLegal && isCorrectNo) || (isValidIllegal && (isCorrectYes || isCorrectUnknown));
+        });
+
+        console.log("违反规则的文件名 (人工复核):", violatingFiles.map(f => f.file_name));
+      }, 0);
+    }
+  }, [activeTab, regionViewMode, sceneAllFilelist, allFilelist]);
+
   // 计算AI判别违规总数和人工判别违规总数
+    // Calculate AI violation total and Manual review violation total
   const calculateViolationCounts = () => {
     let aiIllegalTotal = 0;
     let manualIllegalTotal = 0;
 
+    // Determine which file list to use based on the current view mode (Current Task vs All Tasks in Scene)
     const filesToCount =
       regionViewMode === "all" ? sceneAllFilelist : allFilelist;
 
     filesToCount.forEach((file) => {
-      // AI判别违规总数: valid == "illegal"
+      // AI Violation Total: Simply count where AI marked it as illegal
       if (file.valid === "illegal") {
-        aiIllegalTotal++
+        aiIllegalTotal++;
       }
 
-      // 人工判别违规总数:
-      // 情况1: AI说违规(valid="illegal")且人工确认正确(is_correct="yes")
-      // 情况2: AI说合规(valid="legal")且人工确认有误(is_correct="no")
-      if (
-        (file.valid === "illegal" && file.is_correct === "yes") ||
-        (file.valid === "legal" && file.is_correct === "no")
-      ) {
-        manualIllegalTotal++
-      }
-    })
+      // Manual Review Violation Total Logic:
+      // 1. If AI said "legal" but Human marked it as incorrect ("no"), it IS a violation.
+      // 2. If AI said "illegal" and Human marked it as correct ("yes") or unknown ("unknown"), it IS a violation.
+      
+      const isValidLegal = file.valid === "legal";
+      const isValidIllegal = file.valid === "illegal";
+      const isCorrectNo = file.is_correct === "no";
+      const isCorrectYes = file.is_correct === "yes";
+      const isCorrectUnknown = file.is_correct === "unknown" || file.is_correct === undefined;
 
-    return { aiIllegalTotal, manualIllegalTotal }
-  }
+      if ((isValidLegal && isCorrectNo) || (isValidIllegal && (isCorrectYes || isCorrectUnknown))) {
+        manualIllegalTotal++;
+      }
+    });
+
+    return { aiIllegalTotal, manualIllegalTotal };
+  };
 
   const { aiIllegalTotal, manualIllegalTotal } = calculateViolationCounts()
 
@@ -1031,6 +1112,12 @@ const AIResult: React.FC = () => {
                       className={filterButtonClass("false")}>
                       合规
                     </button>
+                    <button
+                      onClick={() => handleFilterChange("unknown")}
+                      className={filterButtonClass("unknown")}
+                    >
+                      未知
+                    </button>
                   </div>
                 </div>
                 <div className="mt-2 flex items-center gap-4">
@@ -1065,11 +1152,55 @@ const AIResult: React.FC = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
                   </div>
                 ) : (
-                  <DataList
-                    key="file-list"
-                    data={filelist}
-                    columns={fileTabColumns}
-                  />
+                  <>
+                    {violationFilter === "unknown" && (
+                      <div className="mb-4 flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant={selectionMode ? "default" : "outline"}
+                          onClick={() => {
+                            setSelectionMode((prev) => !prev)
+                            if (selectionMode) {
+                              setSelectedFiles([])
+                            }
+                          }}
+                          className="h-8"
+                        >
+                          {selectionMode ? "取消选择" : "选择"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectionMode(true)
+                            setSelectedFiles(filelist.map((file) => file.file_name))
+                          }}
+                          className="h-8"
+                        >
+                          全选
+                        </Button>
+                      </div>
+                    )}
+                    <DataList
+                      key="file-list"
+                      data={filelist}
+                      columns={fileTabColumns}
+                    />
+                    {selectionMode && (
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <div className="text-sm text-slate-600">
+                          已选择 {selectedFiles.length} 个文件
+                        </div>
+                        <Button
+                          size="sm"
+                          disabled={selectedFiles.length === 0}
+                          onClick={handleExportLandCodes}
+                        >
+                          导出地块编码
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1249,10 +1380,7 @@ const AIResult: React.FC = () => {
                         <div className="text-center">
                           <div className="text-xs text-slate-500">文件总数</div>
                           <div className="text-base font-bold text-green-600">
-                            {displayedRegionData.reduce(
-                              (sum, r) => sum + r.count,
-                              0,
-                            )}
+                            {statistics.total_files}
                           </div>
                         </div>
                         <div className="text-center">
@@ -1385,6 +1513,11 @@ const AIResult: React.FC = () => {
           loading={editDetailLoading}
           detail={selectedDetail}
           taskId={selectedTaskId || ""}
+          onSubmitEdit={async () => {
+            if (selectedTaskId) {
+              await loadFilesInfo(selectedTaskId)
+            }
+          }}
         />
       </div>
     </div>
