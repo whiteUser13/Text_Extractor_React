@@ -147,11 +147,11 @@ const ScenesPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <div className="border-l-[3px] border-[#1890ff] pl-4">
+            <h1 className="text-2xl font-semibold leading-8 text-slate-900">
               任务场景
             </h1>
-            <p className="text-gray-600 mt-2">
+            <p className="mt-1 text-sm leading-6 text-slate-500">
               选择或创建一个场景，开始你的审核任务
             </p>
           </div>

@@ -10,6 +10,9 @@ export default {
   safelist: ['border', 'border-border'],
   prefix: '',
   theme: {
+    fontFamily: {
+      sans: ['Inter', 'system-ui', '-apple-system', '"Microsoft YaHei"', 'sans-serif'],
+    },
     container: {
       center: true,
       padding: '2rem',
@@ -19,6 +22,13 @@ export default {
     },
     extend: {
       colors: {
+        gov: {
+          blue: '#1890FF',
+          'blue-dark': '#096DD9',
+          'blue-light': '#E6F7FF',
+          border: '#D9D9D9',
+          hover: '#F5F5F5',
+        },
         border: 'hsl(var(--border))',
         borderColor: {
           border: 'hsl(var(--border))',
@@ -86,6 +96,7 @@ export default {
       boxShadow: {
         card: 'var(--shadow-card)',
         hover: 'var(--shadow-hover)',
+        dropdown: '0 6px 16px rgba(0,0,0,0.12)',
       },
       keyframes: {
         'accordion-down': {
