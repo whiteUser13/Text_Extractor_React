@@ -15,7 +15,7 @@ import { TaskProvider } from "@/context/TaskContext"
 import { useUserStore } from "@/context/userStore"
 import { getTokenStore } from "@/utils/store"
 import { validatenull } from "@/utils/validete"
-import { redirectToOAuthLogin } from "@/api/auth"
+import { getUserInfo, redirectToOAuthLogin } from "@/api/auth"
 import AuthCallback from "@/pages/AuthCallback"
 import LogOut from "./pages/LogOut"
 import ScenesPage from "@/pages/ScenesPage"
@@ -25,12 +25,13 @@ import Dashboard from "@/pages/Dashboard"
 const AppLayout = () => {
   const location = useLocation()
   const initialized = useUserStore((s) => s.initialized)
-  
+
   // 首页（场景页面）不显示 Header
   const isScenesPage = location.pathname === "/"
   // 登录和退出页面也不显示 Header
-  const hideHeader = isScenesPage || 
-    location.pathname === "/login" || 
+  const hideHeader =
+    isScenesPage ||
+    location.pathname === "/login" ||
     location.pathname === "/logout"
 
   return (
@@ -41,13 +42,13 @@ const AppLayout = () => {
           <Routes>
             <Route path="/login" element={<AuthCallback />} />
             <Route path="/logout" element={<LogOut />} />
-            
+
             {/* 场景首页 - 不显示 Header */}
             <Route path="/" element={<ScenesPage />} />
-            
+
             {/* 任务管理页面 - 显示 Header */}
             <Route path="/dashboard/:sceneId" element={<Dashboard />} />
-            
+
             {routes.map((route, index) => {
               const element = route.auth ? (
                 <RequireAuth>{route.element}</RequireAuth>
@@ -78,7 +79,7 @@ const App: React.FC = () => {
       }
 
       const accessToken = getTokenStore({ name: "access_token" })
-      
+
       if (validatenull(accessToken)) {
         setUser(null)
         setInitialized(true)
@@ -87,8 +88,26 @@ const App: React.FC = () => {
         }
         return
       }
-      
-      setInitialized(true)
+
+      try {
+        const result = await getUserInfo(accessToken)
+        if (result.success) {
+          setUser(result.user)
+        } else {
+          setUser(null)
+          if (window.location.pathname !== "/logout") {
+            redirectToOAuthLogin()
+          }
+        }
+      } catch (error) {
+        console.error("初始化用户信息失败:", error)
+        setUser(null)
+        if (window.location.pathname !== "/logout") {
+          redirectToOAuthLogin()
+        }
+      } finally {
+        setInitialized(true)
+      }
     }
 
     initAuth()

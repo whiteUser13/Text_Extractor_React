@@ -82,7 +82,7 @@ function withBase(path: string) {
 // 修改 API 函数以包含任务ID参数
 async function apiGet<T = any>(
   path: string,
-  params?: Record<string, string>
+  params?: Record<string, string>,
 ): Promise<T> {
   const url = new URL(withBase(path), window.location.origin)
   if (params) {
@@ -113,10 +113,11 @@ async function apiPost<T = any>(path: string, body: any): Promise<T> {
 }
 
 /** 以 Blob 方式下载（避免相对路径不可访问导致失败） */
-async  function downloadFile(url: string, filename?: string) { // 1.9修改
+async function downloadFile(url: string, filename?: string) {
+  // 1.9修改
   const resp = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
   })
   if (!resp.ok) {
@@ -132,7 +133,6 @@ async  function downloadFile(url: string, filename?: string) { // 1.9修改
   a.remove()
   URL.revokeObjectURL(objectUrl)
 }
-
 
 // 1.9修改：带 token 的“查看/预览”能力（新标签页打开），用于替代 a.href 直链（无法携带 Authorization Header）
 async function viewFileWithToken(url: string, mimeHint?: string) {
@@ -173,7 +173,7 @@ function formatTs(tsLike: number | string): string {
   const d = new Date(n * 1000) // 如果你的 st_mtime 是毫秒，请改成 new Date(n)
   const pad = (x: number) => String(x).padStart(2, "0")
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(
-    d.getHours()
+    d.getHours(),
   )}:${pad(d.getMinutes())}`
 }
 
@@ -202,7 +202,7 @@ const ParseAndChunk: React.FC = () => {
   >({})
   const selectedJsonCount = useMemo(
     () => Object.keys(selectedJsonByFolder).length,
-    [selectedJsonByFolder]
+    [selectedJsonByFolder],
   )
 
   // 解析日志表格
@@ -221,7 +221,7 @@ const ParseAndChunk: React.FC = () => {
           <div>
             <div
               className={`inline-block w-3 h-3 rounded-full ${getStatusColor(
-                value
+                value,
               )}`}
             />
             <span> {getStatusLabel(value)}</span>
@@ -416,7 +416,7 @@ const ParseAndChunk: React.FC = () => {
     try {
       const response = await apiGet<{ code: number; data: any; msg: string }>(
         "/api/parse/mineru/file-sizes",
-        { task_id: selectedTaskId } // 添加任务ID参数
+        { task_id: selectedTaskId }, // 添加任务ID参数
       )
       if (response?.code === 0 && response.data) {
         const rid = normalizeRid(fileName)
@@ -433,13 +433,13 @@ const ParseAndChunk: React.FC = () => {
 
   // 从已解压文件初始化日志数据
   const initializeLogDataFromDecompressed = async (
-    decompressedList: DecompressedFolder[]
+    decompressedList: DecompressedFolder[],
   ) => {
     try {
       // 从新的后端接口获取文件大小信息
       const response = await apiGet<{ code: number; data: any; msg: string }>(
         "/api/parse/mineru/file-sizes",
-        { task_id: selectedTaskId } // 添加任务ID参数
+        { task_id: selectedTaskId }, // 添加任务ID参数
       )
       const fileSizeMap = new Map()
 
@@ -493,7 +493,7 @@ const ParseAndChunk: React.FC = () => {
     status: string,
     stage: string,
     parsingStatus: string,
-    chunkingStatus: string
+    chunkingStatus: string,
   ) => {
     try {
       await apiPost("/api/parse/update-file-status", {
@@ -516,7 +516,7 @@ const ParseAndChunk: React.FC = () => {
     stage: string,
     parsingStatus: string,
     chunkingStatus: string,
-    fileSize?: string // 新增可选参数
+    fileSize?: string, // 新增可选参数
   ) => {
     setFileData((prevData) => {
       const existingFile = prevData.find((file) => file.fileName === fileName)
@@ -533,15 +533,15 @@ const ParseAndChunk: React.FC = () => {
                 chunkingStatus,
                 size: fileSize || file.size, // 如果有新的大小则更新，否则保持原大小
               }
-            : file
+            : file,
         )
       } else {
         // 允许添加解析和分块相关的文件
         const isInParsed = parsedFolders.some(
-          (folder) => normalizeRid(folder.area_code) === fileName
+          (folder) => normalizeRid(folder.area_code) === fileName,
         )
         const isInChunked = chunkResults.some(
-          (result) => result.area_code === fileName
+          (result) => result.area_code === fileName,
         )
 
         if (isInParsed || isInChunked) {
@@ -572,7 +572,7 @@ const ParseAndChunk: React.FC = () => {
       status,
       stage,
       parsingStatus,
-      chunkingStatus
+      chunkingStatus,
     )
   }
 
@@ -663,19 +663,19 @@ const ParseAndChunk: React.FC = () => {
       // 计算统计信息
       const totalFiles = fileData.length
       const parsedSuccessCount = fileData.filter(
-        (file) => file.parsingStatus === "解析成功"
+        (file) => file.parsingStatus === "解析成功",
       ).length
       const chunkSuccessCount = fileData.filter(
-        (file) => file.chunkingStatus === "分块成功"
+        (file) => file.chunkingStatus === "分块成功",
       ).length
       const processingCount = fileData.filter(
-        (file) => file.status === "处理中"
+        (file) => file.status === "处理中",
       ).length
       const completedCount = fileData.filter(
-        (file) => file.status === "处理完成"
+        (file) => file.status === "处理完成",
       ).length
       const errorCount = fileData.filter(
-        (file) => file.status === "处理失败"
+        (file) => file.status === "处理失败",
       ).length
 
       // 创建工作簿
@@ -740,19 +740,19 @@ const ParseAndChunk: React.FC = () => {
   const fileStats = useMemo(() => {
     const totalFiles = fileData.length
     const parsedSuccessCount = fileData.filter(
-      (file) => file.parsingStatus === "解析成功"
+      (file) => file.parsingStatus === "解析成功",
     ).length
     const chunkSuccessCount = fileData.filter(
-      (file) => file.chunkingStatus === "分块成功"
+      (file) => file.chunkingStatus === "分块成功",
     ).length
     const processingCount = fileData.filter(
-      (file) => file.status === "处理中"
+      (file) => file.status === "处理中",
     ).length
     const completedCount = fileData.filter(
-      (file) => file.status === "处理完成"
+      (file) => file.status === "处理完成",
     ).length
     const errorCount = fileData.filter(
-      (file) => file.status === "处理失败"
+      (file) => file.status === "处理失败",
     ).length
 
     const percent = (num: number) =>
@@ -760,13 +760,13 @@ const ParseAndChunk: React.FC = () => {
 
     // 修改：计算解析进度时，包含正在解析和已解析成功的文件
     const parsingInProgress = fileData.filter(
-      (file) => file.parsingStatus === "解析中"
+      (file) => file.parsingStatus === "解析中",
     ).length
     const parseProgressTotal = parsedSuccessCount + parsingInProgress
 
     // 修改：计算分块进度时，包含正在分块和已分块成功的文件
     const chunkingInProgress = fileData.filter(
-      (file) => file.chunkingStatus === "分块中"
+      (file) => file.chunkingStatus === "分块中",
     ).length
     const chunkProgressTotal = chunkSuccessCount + chunkingInProgress
 
@@ -805,7 +805,7 @@ const ParseAndChunk: React.FC = () => {
         // 1) 已解压 - 添加过滤条件和任务ID参数
         const j1 = await apiGet<{ code: number; data: any[]; msg: string }>(
           "/api/parse/mineru/decompressed",
-          { task_id: selectedTaskId } // 添加任务ID参数
+          { task_id: selectedTaskId }, // 添加任务ID参数
         )
 
         let decompressedList: DecompressedFolder[] = []
@@ -814,7 +814,7 @@ const ParseAndChunk: React.FC = () => {
           const filteredData = j1.data.filter(
             (it: any) =>
               (it.file_type === "pdf" || it.file_type === "word") &&
-              it.status === "ready"
+              it.status === "ready",
           )
 
           decompressedList = filteredData.map((it: any) => ({
@@ -833,7 +833,7 @@ const ParseAndChunk: React.FC = () => {
         try {
           const j2 = await apiGet<{ code: number; data: any[] }>(
             "/api/chunk/mineru/parsed",
-            { task_id: selectedTaskId } // 添加任务ID参数
+            { task_id: selectedTaskId }, // 添加任务ID参数
           )
           if (j2?.code === 0 && Array.isArray(j2.data)) {
             parsedData = j2.data
@@ -848,7 +848,7 @@ const ParseAndChunk: React.FC = () => {
         try {
           const j3 = await apiGet<{ code: number; data: any[] }>(
             "/api/chunk/mineru/chunk-results",
-            { task_id: selectedTaskId } // 添加任务ID参数
+            { task_id: selectedTaskId }, // 添加任务ID参数
           )
           if (j3?.code === 0 && Array.isArray(j3.data)) {
             chunkedData = j3.data
@@ -960,7 +960,7 @@ const ParseAndChunk: React.FC = () => {
       try {
         const recordResp = await apiGet<{ code: number; data: any }>(
           "/api/parse/mineru/record",
-          { task_id: selectedTaskId } // 添加任务ID参数
+          { task_id: selectedTaskId }, // 添加任务ID参数
         )
         if (recordResp?.code === 0) {
           setRecordData(recordResp.data)
@@ -1005,7 +1005,7 @@ const ParseAndChunk: React.FC = () => {
   // 只保留“待解析”的：没解析成功 && 没分块成功
   const pendingDecompressed = useMemo(() => {
     const statusMap = new Map(
-      fileData.map((f) => [normalizeRid(f.fileName), f])
+      fileData.map((f) => [normalizeRid(f.fileName), f]),
     )
     return decompressed.filter((d) => {
       const s = statusMap.get(normalizeRid(d.area_code))
@@ -1019,7 +1019,7 @@ const ParseAndChunk: React.FC = () => {
     () =>
       pendingDecompressed.length > 0 &&
       pendingDecompressed.every((d) => selectedDec.includes(d.area_code)),
-    [pendingDecompressed, selectedDec]
+    [pendingDecompressed, selectedDec],
   ) // 0122修改：判断“是否已全选所有未解析文件”，允许 selectedDec 里包含手动勾选的已解析文件
 
   const toggleAllDec = () => {
@@ -1037,7 +1037,7 @@ const ParseAndChunk: React.FC = () => {
 
   const toggleDecOne = (code: string) => {
     setSelectedDec((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
     )
   }
 
@@ -1205,20 +1205,19 @@ const ParseAndChunk: React.FC = () => {
   /** ---- 解析结果：查看文件 ---- **/
   const viewOneParsedFile = async (areaCode: string, filename: string) => {
     const url = withBase(
-      `/api/file/task-parsed/${selectedTaskId}/${areaCode}/${filename}`
+      `/api/file/task-parsed/${selectedTaskId}/${areaCode}/${filename}`,
     )
     setLogs((l) => [...l, `查看解析文件：${url}`])
     try {
       // 1.9修改：通过 fetch + Authorization 拉取，再用 objectURL 在新标签页打开（a.href 直链无法携带 token）
       const lower = filename.toLowerCase()
-      const mime =
-        lower.endsWith(".pdf")
-          ? "application/pdf"
-          : lower.endsWith(".json")
-            ? "application/json"
-            : lower.endsWith(".md")
-              ? "text/markdown"
-              : "application/octet-stream"
+      const mime = lower.endsWith(".pdf")
+        ? "application/pdf"
+        : lower.endsWith(".json")
+          ? "application/json"
+          : lower.endsWith(".md")
+            ? "text/markdown"
+            : "application/octet-stream"
       await viewFileWithToken(url, mime)
     } catch (e) {
       toast({
@@ -1229,10 +1228,10 @@ const ParseAndChunk: React.FC = () => {
     }
   }
 
-/** ---- 解析结果：下载文件 ---- **/
+  /** ---- 解析结果：下载文件 ---- **/
   const downloadOneParsedFile = async (areaCode: string, filename: string) => {
     const url = withBase(
-      `/api/file/task-parsed/${selectedTaskId}/${areaCode}/${filename}`
+      `/api/file/task-parsed/${selectedTaskId}/${areaCode}/${filename}`,
     )
     setLogs((l) => [...l, `下载解析文件：${url}`])
     try {
@@ -1250,7 +1249,7 @@ const ParseAndChunk: React.FC = () => {
   /** ---- 打包下载所有解析结果 ---- **/
   const downloadAllParseResults = async () => {
     const url = withBase(
-      `/api/parse/mineru/download-all-parse-results?task_id=${selectedTaskId}`
+      `/api/parse/mineru/download-all-parse-results?task_id=${selectedTaskId}`,
     )
     setLogs((l) => [...l, `打包下载所有解析结果...`])
     try {
@@ -1341,12 +1340,12 @@ const ParseAndChunk: React.FC = () => {
           "分块进行中",
           "解析成功",
           "分块中",
-          fileSize
+          fileSize,
         )
 
         const resp = await apiPost<{ code: number; data?: any; msg?: string }>(
           "/api/chunk/mineru/chunk",
-          { report_ids: [rid], task_id: selectedTaskId }
+          { report_ids: [rid], task_id: selectedTaskId },
         )
 
         if (resp?.code === 0) {
@@ -1356,13 +1355,13 @@ const ParseAndChunk: React.FC = () => {
             "分块完成",
             "解析成功",
             "分块成功",
-            fileSize
+            fileSize,
           )
 
           // 每完成一个就刷新分块结果列表
           const j3 = await apiGet<{ code: number; data: any[] }>(
             "/api/chunk/mineru/chunk-results",
-            { task_id: selectedTaskId }
+            { task_id: selectedTaskId },
           )
           if (j3?.code === 0 && Array.isArray(j3.data)) setChunkResults(j3.data)
         } else {
@@ -1372,7 +1371,7 @@ const ParseAndChunk: React.FC = () => {
             "分块失败",
             "解析成功",
             "分块失败",
-            fileSize
+            fileSize,
           )
         }
       }
@@ -1393,7 +1392,7 @@ const ParseAndChunk: React.FC = () => {
   /** ---- 分块结果：查看文件 ---- **/
   const viewOneFile = async (areaCode: string, filename: string) => {
     const url = withBase(
-      `/api/file/task-chunked/${selectedTaskId}/${areaCode}_分块结果/${filename}`
+      `/api/file/task-chunked/${selectedTaskId}/${areaCode}_分块结果/${filename}`,
     )
 
     setLogs((l) => [...l, `查看文件：${url}`])
@@ -1415,14 +1414,16 @@ const ParseAndChunk: React.FC = () => {
     }
   }
 
-/** ---- 分块结果：下载文件 ---- **/
+  /** ---- 分块结果：下载文件 ---- **/
   const downloadOneFile = async (areaCode: string, filename: string) => {
-    const url = withBase(`/api/file/task-chunked/${selectedTaskId}/${areaCode}_分块结果/${filename}`)
+    const url = withBase(
+      `/api/file/task-chunked/${selectedTaskId}/${areaCode}_分块结果/${filename}`,
+    )
     await fetch(url, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`, // 1.9修改
-  }
-})
+      },
+    })
 
     setLogs((l) => [...l, `下载文件：${url}`])
     try {
@@ -1440,7 +1441,7 @@ const ParseAndChunk: React.FC = () => {
   /** ---- 打包下载所有分块结果 ---- **/
   const downloadAllChunkResults = async () => {
     const url = withBase(
-      `/api/chunk/mineru/download-all-chunk-results?task_id=${selectedTaskId}`
+      `/api/chunk/mineru/download-all-chunk-results?task_id=${selectedTaskId}`,
     )
 
     setLogs((l) => [...l, `打包下载所有分块结果...`])
@@ -1457,7 +1458,7 @@ const ParseAndChunk: React.FC = () => {
     }
   }
 
-/** ---- 分块结果筛选 ---- **/
+  /** ---- 分块结果筛选 ---- **/
   const filteredChunkResults = useMemo(() => {
     const q = chunkFilter.trim().toLowerCase()
     if (!q) return chunkResults
@@ -1673,9 +1674,9 @@ const ParseAndChunk: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 页头 */}
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold text-gray-900">
+            <h1 className="text-2xl font-semibold text-gray-900">
               文件解析与分块
             </h1>
           </div>
@@ -1732,7 +1733,9 @@ const ParseAndChunk: React.FC = () => {
                     <button
                       className="text-xs text-blue-600 hover:underline"
                       onClick={toggleAllDec}>
-                      {allUnparsedSelected ? "取消全选未解析文件" : "全选所有未解析文件"}
+                      {allUnparsedSelected
+                        ? "取消全选未解析文件"
+                        : "全选所有未解析文件"}
                     </button>
                   </div>
                   <div className="max-h-60 overflow-y-auto">
@@ -1952,7 +1955,7 @@ const ParseAndChunk: React.FC = () => {
                     {parsedFolders.length ? (
                       parsedFolders.map((pf) => {
                         const jsons = pf.files.filter((f) =>
-                          f.endsWith(".json")
+                          f.endsWith(".json"),
                         )
                         if (!jsons.length) return null
                         return (

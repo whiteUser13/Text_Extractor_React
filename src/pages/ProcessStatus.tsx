@@ -1,4 +1,4 @@
-import React, { useEffect, useState,  useRef } from "react"
+import React, { useEffect, useState, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,7 +33,6 @@ import {
 } from "@/types/processStatus"
 import { useTaskStore } from "@/context/TaskContext"
 
-
 // 定义显示的阶段和顺序，必须与 JSON key 对应
 const STAGE_CONFIG: { key: ProcessStageKey; label: string }[] = [
   { key: "upload", label: "上传" },
@@ -52,7 +51,7 @@ const STAGE_CONFIG: { key: ProcessStageKey; label: string }[] = [
 const StatusIcon = ({
   status,
   // time,
-  tooltipContent,    // 0109新增
+  tooltipContent, // 0109新增
 }: {
   status: StatusState | undefined
   tooltipContent?: string
@@ -78,7 +77,7 @@ const StatusIcon = ({
     // 等待：极简的浅灰空心圆，仅作为占位符，极度弱化
     pending: <Circle className="h-3.5 w-3.5 text-orange-200" />,
   }
-  
+
   // 计算位置逻辑
   const handleMouseEnter = () => {
     if (!tooltipContent || !iconRef.current) return
@@ -94,12 +93,11 @@ const StatusIcon = ({
 
   return (
     <>
-      <div 
+      <div
         ref={iconRef}
         className="flex flex-col items-center justify-center cursor-help"
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={() => setShowTooltip(false)}
-      >
+        onMouseLeave={() => setShowTooltip(false)}>
         {iconMap[currentStatus]}
       </div>
 
@@ -107,24 +105,25 @@ const StatusIcon = ({
          使用 Portal 将悬浮层渲染到 body 节点，彻底解决表格 overflow 遮挡问题 
          transform: translate(-50%, -100%) 实现了基于内容的自动宽高定位（始终居中并位于上方）
       */}
-      {showTooltip && tooltipContent && createPortal(
-        <div 
-          className="fixed z-[99999] pointer-events-none"
-          style={{ 
-            top: coords.top, 
-            left: coords.left,
-            transform: "translate(-50%, -100%)", // 核心：让其自动向上、居中位移
-          }}
-        >
-          {/* 内容框：最大宽度300px，内容过长自动换行，高度自适应 */}
-          <div className="bg-slate-800/95 backdrop-blur-sm text-white text-[10px] leading-tight p-2 rounded shadow-xl max-w-[300px] min-w-[120px] whitespace-normal break-words text-center border border-slate-700">
-            {tooltipContent}
-          </div>
-          {/* 小三角装饰 */}
-          <div className="w-2 h-2 bg-slate-800 rotate-45 mx-auto -mt-1 border-r border-b border-slate-700 relative z-10"></div>
-        </div>,
-        document.body
-      )}
+      {showTooltip &&
+        tooltipContent &&
+        createPortal(
+          <div
+            className="fixed z-[99999] pointer-events-none"
+            style={{
+              top: coords.top,
+              left: coords.left,
+              transform: "translate(-50%, -100%)", // 核心：让其自动向上、居中位移
+            }}>
+            {/* 内容框：最大宽度300px，内容过长自动换行，高度自适应 */}
+            <div className="bg-slate-800/95 backdrop-blur-sm text-white text-[10px] leading-tight p-2 rounded shadow-xl max-w-[300px] min-w-[120px] whitespace-normal break-words text-center border border-slate-700">
+              {tooltipContent}
+            </div>
+            {/* 小三角装饰 */}
+            <div className="w-2 h-2 bg-slate-800 rotate-45 mx-auto -mt-1 border-r border-b border-slate-700 relative z-10"></div>
+          </div>,
+          document.body,
+        )}
     </>
   )
 }
@@ -140,6 +139,7 @@ const ProcessStatusPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
+  const [jumpPage, setJumpPage] = useState("")
   //1227修改
   const pageSize = 20 // 每页显示 20 条
   //修改结束
@@ -184,7 +184,7 @@ const ProcessStatusPage: React.FC = () => {
   // 确保当前页码有效
   const safeCurrentPage = Math.min(
     Math.max(1, currentPage),
-    Math.max(1, totalPages)
+    Math.max(1, totalPages),
   )
 
   const startIndex = (safeCurrentPage - 1) * pageSize
@@ -198,6 +198,17 @@ const ProcessStatusPage: React.FC = () => {
 
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage((p) => p + 1)
+  }
+
+  const handleJumpPage = () => {
+    const targetPage = Number(jumpPage)
+
+    if (!Number.isInteger(targetPage) || targetPage < 1 || totalPages < 1) {
+      return
+    }
+
+    setCurrentPage(Math.min(Math.max(targetPage, 1), totalPages))
+    setJumpPage("")
   }
 
   // 将 files 对象转换为数组以便渲染
@@ -303,7 +314,7 @@ const ProcessStatusPage: React.FC = () => {
                 <TableRow>
                   {/* 1225[修改] 增加地块编码列，调整宽度 */}
                   <TableHead className="w-[180px] pl-6">地块编码</TableHead>
-                  <TableHead className="w-[250px]">文件名</TableHead>
+                  <TableHead className="w-[550px]">文件名</TableHead>
 
                   <TableHead className="w-[100px]">整体状态</TableHead>
                   <TableHead className="w-[180px]">更新时间</TableHead>
@@ -324,39 +335,34 @@ const ProcessStatusPage: React.FC = () => {
                     className="hover:bg-slate-50/50">
                     {/* 1225[新增] 第一列：地块编码 */}
                     <TableCell className="font-medium pl-6 text-slate-700">
-                      {file.primary_key}
+                      <span
+                        className="block w-[150px] overflow-hidden whitespace-normal break-all leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]"
+                        title={file.primary_key}>
+                        {file.primary_key}
+                      </span>
                     </TableCell>
                     {/* 1225[修改] 第二列：文件名 (原第一列) */}
                     <TableCell>
                       <div className="flex flex-col">
                         {/* -------------------20260303修改----------------- */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-2">
                           <span
-                            className="truncate max-w-[230px] text-slate-700"
+                            className="max-w-[530px] overflow-hidden whitespace-normal break-all text-slate-700 leading-5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]"
                             title={file.file_name}>
                             {file.file_name}
                           </span>
                           {/* 2026-03：解压阶段“成功但无有效文件”标注 */}
-                          {String((file as any)?.decompress?.error || "").includes(
-                            "无符合条件的文件"
-                          ) && (
+                          {String(
+                            (file as any)?.decompress?.error || "",
+                          ).includes("无符合条件的文件") && (
                             <Badge
                               variant="outline"
-                              className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                            >
+                              className="bg-yellow-50 text-yellow-700 border-yellow-200">
                               无符合文件
                             </Badge>
                           )}
                         </div>
                         {/* -------------------20260303修改结束----------------- */}
-
-                        {/* 如果原始文件名和显示文件名不同，才显示副标题 */}
-                        {file.original_name &&
-                          file.original_name !== file.file_name && (
-                            <span className="text-xs text-muted-foreground truncate max-w-[230px] mt-0.5">
-                              {file.original_name}
-                            </span>
-                          )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -381,7 +387,7 @@ const ProcessStatusPage: React.FC = () => {
                           }
                           ${
                             !["processing", "success", "failed"].includes(
-                              file.final_status || ""
+                              file.final_status || "",
                             )
                               ? "bg-slate-100 text-slate-500 border-slate-200"
                               : ""
@@ -390,10 +396,10 @@ const ProcessStatusPage: React.FC = () => {
                         {file.final_status === "processing"
                           ? "处理中"
                           : file.final_status === "success"
-                          ? "成功"
-                          : file.final_status === "failed"
-                          ? "失败"
-                          : file.final_status || "等待"}
+                            ? "成功"
+                            : file.final_status === "failed"
+                              ? "失败"
+                              : file.final_status || "等待"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground font-mono">
@@ -403,17 +409,19 @@ const ProcessStatusPage: React.FC = () => {
                     {STAGE_CONFIG.map((stage) => {
                       // [0109修改] 优先使用后端传来的 stage_hover 自定义提示信息
                       // 失败时这里是错误信息，成功时是时间
-                      const hoverText = (file as any).stage_hover?.[stage.key] || file[stage.key]?.time;
-                      return(
+                      const hoverText =
+                        (file as any).stage_hover?.[stage.key] ||
+                        file[stage.key]?.time
+                      return (
                         <TableCell
                           key={stage.key}
                           className="text-center p-0 h-14">
                           <StatusIcon
                             status={file[stage.key]?.status}
-                            tooltipContent={hoverText}   // 0109
+                            tooltipContent={hoverText} // 0109
                           />
                         </TableCell>
-                      );
+                      )
                     })}
                   </TableRow>
                 ))}
@@ -439,14 +447,15 @@ const ProcessStatusPage: React.FC = () => {
                 显示 {startIndex + 1} 到 {Math.min(endIndex, totalItems)} 条，共{" "}
                 {totalItems} 条
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handlePrevPage}
                   disabled={currentPage === 1}
-                  className="h-8 w-8 p-0">
+                  className="h-8 px-3">
                   <ChevronLeft className="h-4 w-4" />
+                  上一页
                 </Button>
                 <div className="text-sm font-medium min-w-[3rem] text-center">
                   {safeCurrentPage} / {totalPages || 1}
@@ -456,9 +465,34 @@ const ProcessStatusPage: React.FC = () => {
                   size="sm"
                   onClick={handleNextPage}
                   disabled={currentPage >= totalPages}
-                  className="h-8 w-8 p-0">
+                  className="h-8 px-3">
+                  下一页
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+                <div className="ml-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>跳转到</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalPages || 1}
+                    value={jumpPage}
+                    onChange={(event) => setJumpPage(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        handleJumpPage()
+                      }
+                    }}
+                    className="h-8 w-16 rounded border border-gray-300 bg-white px-2 text-center outline-none focus:border-[#1890ff] focus:ring-2 focus:ring-[#1890ff]/15"
+                  />
+                  <span>页</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleJumpPage}
+                    className="h-8 px-3">
+                    确定
+                  </Button>
+                </div>
               </div>
             </div>
           )}

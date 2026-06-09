@@ -64,7 +64,7 @@ interface GenerationLog {
 
 // 从任务生成表头规则
 const generateHeadersFromTask = (
-  task: Task | null
+  task: Task | null,
 ): {
   extractionHeaders: string[]
   judgmentHeaders: string[]
@@ -121,17 +121,17 @@ const generateHeadersFromTask = (
 
   // 计算共用字段
   const commonHeaders = pureExtractionHeaders.filter((header) =>
-    pureJudgmentHeaders.includes(header)
+    pureJudgmentHeaders.includes(header),
   )
 
   // 计算纯提取字段
   const finalPureExtractionHeaders = pureExtractionHeaders.filter(
-    (header) => !commonHeaders.includes(header)
+    (header) => !commonHeaders.includes(header),
   )
 
   // 计算纯判别字段
   const finalPureJudgmentHeaders = pureJudgmentHeaders.filter(
-    (header) => !commonHeaders.includes(header)
+    (header) => !commonHeaders.includes(header),
   )
 
   // 基础字段
@@ -188,7 +188,7 @@ const saveLogsToStorage = (logs: GenerationLog[]) => {
     }))
     localStorage.setItem(
       "excel_report_generation_logs",
-      JSON.stringify(logsToSave)
+      JSON.stringify(logsToSave),
     )
   } catch (error) {
     console.error("保存日志到本地存储失败:", error)
@@ -239,7 +239,7 @@ const downloadExcelFile = async (downloadUrl: string, filename: string) => {
 const ExcelReportGenerator: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationLogs, setGenerationLogs] = useState<GenerationLog[]>(
-    loadLogsFromStorage()
+    loadLogsFromStorage(),
   )
   const [resultFolders, setResultFolders] = useState<ResultFolder[]>([])
   const [isLoadingFolders, setIsLoadingFolders] = useState(false)
@@ -259,7 +259,7 @@ const ExcelReportGenerator: React.FC = () => {
 
   // 更新日志并保存到本地存储
   const updateGenerationLogs = (
-    newLogs: GenerationLog[] | ((prev: GenerationLog[]) => GenerationLog[])
+    newLogs: GenerationLog[] | ((prev: GenerationLog[]) => GenerationLog[]),
   ) => {
     setGenerationLogs((prev) => {
       const updatedLogs =
@@ -274,7 +274,7 @@ const ExcelReportGenerator: React.FC = () => {
     type: GenerationLog["type"],
     message: string,
     folderName?: string,
-    downloadUrl?: string
+    downloadUrl?: string,
   ) => {
     const newLog: GenerationLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -307,7 +307,7 @@ const ExcelReportGenerator: React.FC = () => {
       if (folders.length === 0) {
         addLog(
           "warning",
-          `任务 ${selectedTaskId} 没有找到结果数据，请先完成内容提取和判别`
+          `任务 ${selectedTaskId} 没有找到结果数据，请先完成内容提取和判别`,
         )
       }
     } catch (error) {
@@ -395,7 +395,7 @@ const ExcelReportGenerator: React.FC = () => {
       // 调用批量生成接口 - 每个任务只调用一次
       const response = await apiClient.post(
         `/api/result/task/${selectedTaskId}/generate_batch_excel`,
-        requestBody
+        requestBody,
       )
       console.log("生成响应:", response.data)
 
@@ -410,7 +410,7 @@ const ExcelReportGenerator: React.FC = () => {
             "download",
             `文件下载成功: ${filename}`,
             undefined,
-            response.data.download_url
+            response.data.download_url,
           )
 
           toast({
@@ -465,7 +465,7 @@ const ExcelReportGenerator: React.FC = () => {
   // 手动下载文件
   const handleManualDownload = async (
     downloadUrl: string,
-    filename: string
+    filename: string,
   ) => {
     try {
       addLog("info", `开始下载文件: ${filename}`)
@@ -505,10 +505,10 @@ const ExcelReportGenerator: React.FC = () => {
 
     const baseHeaders = ["地块编号", "报告名称"]
     const pureExtractionCount = extractionRuleSet.extractionHeaders.filter(
-      (h: string) => !baseHeaders.includes(h)
+      (h: string) => !baseHeaders.includes(h),
     ).length
     const pureJudgmentCount = extractionRuleSet.judgmentHeaders.filter(
-      (h: string) => !baseHeaders.includes(h)
+      (h: string) => !baseHeaders.includes(h),
     ).length
 
     return {
@@ -587,8 +587,8 @@ const ExcelReportGenerator: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 页面标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Excel报告生成
           </h1>
           <p className="text-lg text-gray-600">
@@ -702,7 +702,7 @@ const ExcelReportGenerator: React.FC = () => {
                       <div className="space-y-1">
                         {extractionRuleSet.allHeaders.map((header, index) => {
                           const isBaseField = ["地块编号", "报告名称"].includes(
-                            header
+                            header,
                           )
                           const isExtractionField =
                             extractionRuleSet.extractionHeaders.includes(header)
@@ -790,19 +790,19 @@ const ExcelReportGenerator: React.FC = () => {
                               folder.status === "both"
                                 ? "default"
                                 : folder.status === "extracted"
-                                ? "secondary"
-                                : folder.status === "validated"
-                                ? "destructive"
-                                : "outline"
+                                  ? "secondary"
+                                  : folder.status === "validated"
+                                    ? "destructive"
+                                    : "outline"
                             }>
                             {folder.status === "complete" ||
                             folder.status === "both"
                               ? "完整"
                               : folder.status === "extracted"
-                              ? "已提取"
-                              : folder.status === "validated"
-                              ? "已判别"
-                              : folder.status}
+                                ? "已提取"
+                                : folder.status === "validated"
+                                  ? "已判别"
+                                  : folder.status}
                           </Badge>
                         </div>
                       ))}
@@ -915,7 +915,7 @@ const ExcelReportGenerator: React.FC = () => {
                         <div
                           key={log.id}
                           className={`p-3 rounded text-sm ${getLogStyle(
-                            log.type
+                            log.type,
                           )}`}>
                           <div className="flex items-start gap-3">
                             {getLogIcon(log.type)}
@@ -950,7 +950,7 @@ const ExcelReportGenerator: React.FC = () => {
                                         log.downloadUrl!,
                                         log.message.includes(":")
                                           ? log.message.split(":")[1].trim()
-                                          : "download.xlsx"
+                                          : "download.xlsx",
                                       )
                                     }
                                     className="h-6 px-2 text-xs">

@@ -1,6 +1,21 @@
 import React, { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, X, FileText, Upload, Search, Brain, Bot, Bell, Settings } from "lucide-react"
+import {
+  Archive,
+  Bell,
+  Bot,
+  ClipboardCheck,
+  FileChartColumn,
+  FileSearch,
+  FileSpreadsheet,
+  FileText,
+  Home,
+  Menu,
+  Search,
+  Settings,
+  UploadCloud,
+  X,
+} from "lucide-react"
 import routes from "../../routes"
 
 import { UserAvatarMenu } from "@/components/common/UserAvatarMenu"
@@ -13,13 +28,21 @@ const Header: React.FC = () => {
   const getIcon = (path: string) => {
     switch (path) {
       case "/":
-        return <FileText className="h-4 w-4" />
+        return <Home className="h-4 w-4" />
       case "/upload":
-        return <Upload className="h-4 w-4" />
+        return <UploadCloud className="h-4 w-4" />
+      case "/decompression":
+        return <Archive className="h-4 w-4" />
+      case "/parse-and-chunk":
+        return <FileSearch className="h-4 w-4" />
       case "/extraction":
-        return <Search className="h-4 w-4" />
-      case "/analysis":
-        return <Brain className="h-4 w-4" />
+        return <ClipboardCheck className="h-4 w-4" />
+      case "/airesult":
+        return <FileChartColumn className="h-4 w-4" />
+      case "/excel-report":
+        return <FileSpreadsheet className="h-4 w-4" />
+      case "/process-status":
+        return <FileText className="h-4 w-4" />
       case "/assistant":
         return <Bot className="h-4 w-4" />
       default:
@@ -28,30 +51,27 @@ const Header: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 z-50 h-16 border-b border-white/15 bg-[#0b5cad] text-white shadow-none">
+    <header className="sticky top-0 z-50 h-16 border-b border-white/15 bg-[#1890FF] text-white shadow-none">
       <nav className="mx-auto h-full max-w-[1920px] px-6">
-        <div className="flex h-16 items-center justify-between gap-6">
-          <div className="flex items-center">
+        <div className="flex h-16 items-center justify-between gap-3 lg:gap-6">
+          <div className="flex min-w-0 items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <div className="h-8 w-8 rounded bg-white/15 flex items-center justify-center ring-1 ring-white/20">
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-              <span className="ml-3 text-lg font-semibold text-white">
-                报告智能提取审核系统
+              <span className="ml-1 hidden max-w-[220px] truncate text-base font-semibold text-white 2xl:inline 2xl:max-w-none 2xl:text-[20px]">
+                土壤污染状况调查报告智能提取与审核系统
               </span>
             </Link>
           </div>
 
           {/* 桌面导航 */}
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex">
             {navigation.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative flex h-16 items-center gap-2 px-4 text-sm font-medium transition-colors duration-200 before:absolute before:inset-x-4 before:bottom-0 before:h-0.5 before:origin-center before:scale-x-0 before:bg-[#91d5ff] before:transition-transform ${
+                className={`relative flex h-10 shrink items-center gap-1.5 whitespace-nowrap rounded px-[clamp(0.45rem,0.7vw,0.9rem)] text-[clamp(12px,1.05vw,28px)] font-bold leading-none transition-colors duration-200 before:absolute before:inset-x-3 before:bottom-1 before:h-0.5 before:origin-center before:scale-x-0 before:rounded before:bg-[#1890ff] before:transition-transform [&>svg]:h-[1em] [&>svg]:w-[1em] ${
                   location.pathname === item.path
-                    ? "text-white before:scale-x-100"
-                    : "text-white/80 hover:text-white hover:bg-white/10"
+                    ? "bg-[#e6f7ff] text-[#003a8c] shadow-sm ring-1 ring-white/30 before:scale-x-100"
+                    : "text-white/85 hover:bg-white/10 hover:text-white"
                 }`}>
                 {getIcon(item.path)}
                 {item.name}
@@ -59,13 +79,19 @@ const Header: React.FC = () => {
             ))}
           </div>
           <div className="ml-auto hidden items-center gap-1 md:flex">
-            <button className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10" title="搜索">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10"
+              title="搜索">
               <Search className="h-5 w-5" />
             </button>
-            <button className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10" title="消息">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10"
+              title="消息">
               <Bell className="h-5 w-5" />
             </button>
-            <button className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10" title="设置">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded hover:bg-white/10"
+              title="设置">
               <Settings className="h-5 w-5" />
             </button>
           </div>

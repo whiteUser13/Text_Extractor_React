@@ -5,19 +5,19 @@ export interface DownloadTaskInfo {
   area_code: string
   file_name: string
   status: "pending" | "downloading" | "downloaded" | "error"
-  created_at: string  // 修改为 string 类型，方便前端显示
-  size: number  // 修改为 number 类型
-  err_msg?: string  // 改为可选
-  task_id?: string  // 添加可选的任务ID
+  created_at: string // 修改为 string 类型，方便前端显示
+  size: number // 修改为 number 类型
+  err_msg?: string // 改为可选
+  task_id?: string // 添加可选的任务ID
 }
 
 // 上传文件信息
 export interface UploadFileInfo {
   id: string
   origin_name: string
-  size: number  // 修改为 number 类型
+  size: number // 修改为 number 类型
   type: string
-  upload_time: string  // 修改为 string 类型
+  upload_time: string // 修改为 string 类型
   status: string
   task_id: string
   user_id: string
@@ -55,7 +55,7 @@ export interface FileListResponse {
 // 上传文件
 export async function uploadFile(
   formData: FormData,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
 ): Promise<UploadResponse> {
   try {
     const res = await apiClient.post("/api/upload/upload", formData, {
@@ -96,7 +96,11 @@ export async function uploadFile(
     console.error("上传文件错误:", error)
     return {
       success: false,
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }
@@ -104,7 +108,7 @@ export async function uploadFile(
 // 添加下载任务
 export async function addDownloadTask(
   codes: string[],
-  taskId: string
+  taskId: string,
 ): Promise<TaskListResponse> {
   try {
     const res = await apiClient.post("/api/download/add_download_task", {
@@ -139,14 +143,18 @@ export async function addDownloadTask(
     return {
       success: false,
       data: [],
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }
 
 // 获取下载所有文件下载信息
 export async function getDownloadTasksInfo(
-  task_id: string
+  task_id: string,
 ): Promise<TaskListResponse> {
   try {
     const res = await apiClient.get("/api/download/info", {
@@ -182,13 +190,19 @@ export async function getDownloadTasksInfo(
     return {
       success: false,
       data: [],
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }
 
 // 获取上传文件信息
-export async function getUploadFileInfo(task_id: string): Promise<FileListResponse> {
+export async function getUploadFileInfo(
+  task_id: string,
+): Promise<FileListResponse> {
   try {
     const res = await apiClient.get("/api/upload/get_info/by_id", {
       params: {
@@ -223,13 +237,19 @@ export async function getUploadFileInfo(task_id: string): Promise<FileListRespon
     return {
       success: false,
       data: [],
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }
 
 // 重试下载错误文件
-export async function retryErrorDownload(task_id: string): Promise<TaskListResponse> {
+export async function retryErrorDownload(
+  task_id: string,
+): Promise<TaskListResponse> {
   try {
     const res = await apiClient.get("/api/download/retry/error", {
       params: {
@@ -264,7 +284,11 @@ export async function retryErrorDownload(task_id: string): Promise<TaskListRespo
     return {
       success: false,
       data: [],
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }
@@ -272,7 +296,7 @@ export async function retryErrorDownload(task_id: string): Promise<TaskListRespo
 // 删除上传文件（新增）
 export async function deleteUploadFile(
   task_id: string,
-  file_id: string
+  file_id: string,
 ): Promise<ApiResponse> {
   try {
     const res = await apiClient.delete("/api/upload/delete", {
@@ -304,7 +328,11 @@ export async function deleteUploadFile(
     console.error("删除上传文件错误:", error)
     return {
       success: false,
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }
@@ -312,7 +340,7 @@ export async function deleteUploadFile(
 // 批量删除上传文件（新增）
 export async function batchDeleteUploadFile(
   task_id: string,
-  file_ids: string[]
+  file_ids: string[],
 ): Promise<ApiResponse> {
   try {
     const res = await apiClient.post("/api/upload/batch_delete", {
@@ -342,7 +370,11 @@ export async function batchDeleteUploadFile(
     console.error("批量删除上传文件错误:", error)
     return {
       success: false,
-      msg: error.response?.data?.error || error.response?.data?.msg || error.message || "网络错误",
+      msg:
+        error.response?.data?.error ||
+        error.response?.data?.msg ||
+        error.message ||
+        "网络错误",
     }
   }
 }

@@ -706,8 +706,8 @@ const FileUpload: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 页面标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             文件上传与管理
           </h1>
           <p className="text-lg text-gray-600">

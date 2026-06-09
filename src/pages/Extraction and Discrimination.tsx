@@ -223,7 +223,7 @@ const extractRuleIdentifier = (filename: string): string => {
     if (keywordIndex > -1) {
       // 尝试提取规则名称部分
       const afterKeyword = nameWithoutExt.substring(
-        keywordIndex + keyword.length
+        keywordIndex + keyword.length,
       )
       const parts = afterKeyword.split(/[_.-]/)
       if (parts.length > 0 && parts[0].trim()) {
@@ -402,7 +402,7 @@ const FileList: React.FC<FileListProps> = ({
           const errorText = await response.text()
           console.error(`API错误响应:`, errorText.substring(0, 500))
           throw new Error(
-            `获取文件列表失败: ${response.status} ${response.statusText}`
+            `获取文件列表失败: ${response.status} ${response.statusText}`,
           )
         }
 
@@ -500,7 +500,7 @@ const FileList: React.FC<FileListProps> = ({
 
         // 过滤掉错误日志文件
         const filteredFiles = processedFiles.filter(
-          (file: ResultFile) => !isErrorLogFile(file.name)
+          (file: ResultFile) => !isErrorLogFile(file.name),
         )
 
         // 根据文件类型筛选
@@ -517,7 +517,7 @@ const FileList: React.FC<FileListProps> = ({
         // 如果有规则筛选，进一步过滤文件
         const ruleFilteredFiles = ruleFilter
           ? typeFilteredFiles.filter(
-              (file: ResultFile) => file.ruleIdentifier === ruleFilter
+              (file: ResultFile) => file.ruleIdentifier === ruleFilter,
             )
           : typeFilteredFiles
 
@@ -525,14 +525,14 @@ const FileList: React.FC<FileListProps> = ({
         const stats = {
           total: ruleFilteredFiles.length,
           markdown: ruleFilteredFiles.filter(
-            (file: ResultFile) => file.isMarkdown
+            (file: ResultFile) => file.isMarkdown,
           ).length,
           json: ruleFilteredFiles.filter(
-            (file: ResultFile) => file.type.toLowerCase() === "json"
+            (file: ResultFile) => file.type.toLowerCase() === "json",
           ).length,
           other: ruleFilteredFiles.filter(
             (file: ResultFile) =>
-              !file.isMarkdown && file.type.toLowerCase() !== "json"
+              !file.isMarkdown && file.type.toLowerCase() !== "json",
           ).length,
         }
         setFileStats(stats)
@@ -579,21 +579,21 @@ const FileList: React.FC<FileListProps> = ({
 
           // 过滤掉错误日志文件
           const filteredFiles = processedFiles.filter(
-            (file: ResultFile) => !isErrorLogFile(file.name)
+            (file: ResultFile) => !isErrorLogFile(file.name),
           )
 
           // 统计文件类型
           const stats = {
             total: filteredFiles.length,
             markdown: filteredFiles.filter(
-              (file: ResultFile) => file.isMarkdown
+              (file: ResultFile) => file.isMarkdown,
             ).length,
             json: filteredFiles.filter(
-              (file: ResultFile) => file.type.toLowerCase() === "json"
+              (file: ResultFile) => file.type.toLowerCase() === "json",
             ).length,
             other: filteredFiles.filter(
               (file: ResultFile) =>
-                !file.isMarkdown && file.type.toLowerCase() !== "json"
+                !file.isMarkdown && file.type.toLowerCase() !== "json",
             ).length,
           }
           setFileStats(stats)
@@ -601,7 +601,7 @@ const FileList: React.FC<FileListProps> = ({
           // 如果有规则筛选，进一步过滤文件
           const ruleFilteredFiles = ruleFilter
             ? filteredFiles.filter(
-                (file: ResultFile) => file.ruleIdentifier === ruleFilter
+                (file: ResultFile) => file.ruleIdentifier === ruleFilter,
               )
             : filteredFiles
 
@@ -646,167 +646,172 @@ const FileList: React.FC<FileListProps> = ({
     toast,
   ])
 
-const downloadFile = async (filename: string) => {
-  try {
-    let response: Response
-    let downloadUrl = ""
+  const downloadFile = async (filename: string) => {
+    try {
+      let response: Response
+      let downloadUrl = ""
 
-    if (taskId) {
-      // 构建正确的下载URL
-      if (isExtractionResult) {
-        downloadUrl =
-          extractionAndDiscriminationApi.downloadTaskExtractionFile(
+      if (taskId) {
+        // 构建正确的下载URL
+        if (isExtractionResult) {
+          downloadUrl =
+            extractionAndDiscriminationApi.downloadTaskExtractionFile(
+              taskId,
+              filename,
+            )
+        } else if (isDiscriminationResult) {
+          downloadUrl =
+            extractionAndDiscriminationApi.downloadTaskDiscriminationFile(
+              taskId,
+              filename,
+            )
+        } else {
+          downloadUrl = extractionAndDiscriminationApi.downloadTaskChunkedFile(
             taskId,
-            filename
+            filename,
           )
-      } else if (isDiscriminationResult) {
-        downloadUrl =
-          extractionAndDiscriminationApi.downloadTaskDiscriminationFile(
-            taskId,
-            filename
-          )
-      } else {
-        downloadUrl = extractionAndDiscriminationApi.downloadTaskChunkedFile(
-          taskId,
-          filename
-        )
-      }
-
-      console.log(`下载文件URL: ${downloadUrl}`)
-      
-      // 添加认证头
-      const headers: HeadersInit = {
-        Accept: "application/octet-stream",
-      }
-      
-      // 如果本地存储有token，添加认证头
-      const token = localStorage.getItem("token")
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`
-      }
-
-      response = await fetch(downloadUrl, { headers })
-
-      if (response.ok) {
-        // 检查内容类型
-        const contentType = response.headers.get("content-type") || ""
-        const contentDisposition = response.headers.get("content-disposition") || ""
-        
-        console.log(`内容类型: ${contentType}`)
-        console.log(`Content-Disposition: ${contentDisposition}`)
-
-        // 获取blob数据
-        const blob = await response.blob()
-        
-        // 从Content-Disposition中提取文件名，如果没有则使用原始文件名
-        let downloadFilename = filename
-        if (contentDisposition) {
-          const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-          if (matches && matches[1]) {
-            downloadFilename = matches[1].replace(/['"]/g, '')
-          }
         }
 
-        // 创建下载链接
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.style.display = "none"
-        a.href = url
-        a.download = downloadFilename
-        
-        // 添加到文档并触发点击
-        document.body.appendChild(a)
-        a.click()
-        
-        // 清理
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+        console.log(`下载文件URL: ${downloadUrl}`)
 
-        toast({
-          title: "下载成功",
-          description: `文件 ${downloadFilename} 已开始下载`,
-        })
-      } else {
-        // 如果响应状态不是200-299，尝试查看错误信息
-        const errorText = await response.text()
-        console.error(`下载失败 (${response.status}):`, errorText)
-        
-        // 如果服务器返回了错误页面，提供备选方案
-        if (response.headers.get("content-type")?.includes("text/html")) {
+        // 添加认证头
+        const headers: HeadersInit = {
+          Accept: "application/octet-stream",
+        }
+
+        // 如果本地存储有token，添加认证头
+        const token = localStorage.getItem("token")
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`
+        }
+
+        response = await fetch(downloadUrl, { headers })
+
+        if (response.ok) {
+          // 检查内容类型
+          const contentType = response.headers.get("content-type") || ""
+          const contentDisposition =
+            response.headers.get("content-disposition") || ""
+
+          console.log(`内容类型: ${contentType}`)
+          console.log(`Content-Disposition: ${contentDisposition}`)
+
+          // 获取blob数据
+          const blob = await response.blob()
+
+          // 从Content-Disposition中提取文件名，如果没有则使用原始文件名
+          let downloadFilename = filename
+          if (contentDisposition) {
+            const matches = contentDisposition.match(
+              /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
+            )
+            if (matches && matches[1]) {
+              downloadFilename = matches[1].replace(/['"]/g, "")
+            }
+          }
+
+          // 创建下载链接
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.style.display = "none"
+          a.href = url
+          a.download = downloadFilename
+
+          // 添加到文档并触发点击
+          document.body.appendChild(a)
+          a.click()
+
+          // 清理
+          window.URL.revokeObjectURL(url)
+          document.body.removeChild(a)
+
           toast({
-            title: "下载失败",
-            description: "服务器返回了错误页面，请联系管理员",
-            variant: "destructive",
+            title: "下载成功",
+            description: `文件 ${downloadFilename} 已开始下载`,
           })
         } else {
-          throw new Error(`下载失败: ${response.status} ${response.statusText}`)
+          // 如果响应状态不是200-299，尝试查看错误信息
+          const errorText = await response.text()
+          console.error(`下载失败 (${response.status}):`, errorText)
+
+          // 如果服务器返回了错误页面，提供备选方案
+          if (response.headers.get("content-type")?.includes("text/html")) {
+            toast({
+              title: "下载失败",
+              description: "服务器返回了错误页面，请联系管理员",
+              variant: "destructive",
+            })
+          } else {
+            throw new Error(
+              `下载失败: ${response.status} ${response.statusText}`,
+            )
+          }
+        }
+      } else if (areaCode) {
+        // 原来的逻辑（全局目录）
+        downloadUrl = extractionAndDiscriminationApi.getMarkdownExtractionFile(
+          areaCode || "",
+          filename,
+        )
+
+        console.log(`全局下载文件URL: ${downloadUrl}`)
+
+        response = await fetch(downloadUrl)
+
+        if (response.ok) {
+          const blob = await response.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.style.display = "none"
+          a.href = url
+          a.download = filename
+          document.body.appendChild(a)
+          a.click()
+          window.URL.revokeObjectURL(url)
+          document.body.removeChild(a)
+
+          toast({
+            title: "下载成功",
+            description: `文件 ${filename} 已开始下载`,
+          })
+        } else {
+          throw new Error(`下载文件失败: ${response.status}`)
         }
       }
-    } else if (areaCode) {
-      // 原来的逻辑（全局目录）
-      downloadUrl = extractionAndDiscriminationApi.getMarkdownExtractionFile(
-        areaCode || "",
-        filename
-      )
-      
-      console.log(`全局下载文件URL: ${downloadUrl}`)
-      
-      response = await fetch(downloadUrl)
+    } catch (error) {
+      console.error("下载文件失败:", error)
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.style.display = "none"
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
+      // 提供详细的错误信息
+      let errorMessage = "下载失败"
+      if (error instanceof Error) {
+        if (error.message.includes("Failed to fetch")) {
+          errorMessage = "网络连接失败，请检查网络设置"
+        } else if (error.message.includes("404")) {
+          errorMessage = "文件不存在或已被删除"
+        } else if (error.message.includes("403")) {
+          errorMessage = "没有权限下载此文件"
+        } else {
+          errorMessage = error.message
+        }
+      }
 
-        toast({
-          title: "下载成功",
-          description: `文件 ${filename} 已开始下载`,
-        })
-      } else {
-        throw new Error(`下载文件失败: ${response.status}`)
-      }
+      toast({
+        title: "下载失败",
+        description: errorMessage,
+        variant: "destructive",
+      })
+
+      // 在控制台输出更详细的调试信息
+      console.log("下载失败详情:", {
+        taskId,
+        areaCode,
+        filename,
+        isExtractionResult,
+        isDiscriminationResult,
+        error,
+      })
     }
-  } catch (error) {
-    console.error("下载文件失败:", error)
-    
-    // 提供详细的错误信息
-    let errorMessage = "下载失败"
-    if (error instanceof Error) {
-      if (error.message.includes("Failed to fetch")) {
-        errorMessage = "网络连接失败，请检查网络设置"
-      } else if (error.message.includes("404")) {
-        errorMessage = "文件不存在或已被删除"
-      } else if (error.message.includes("403")) {
-        errorMessage = "没有权限下载此文件"
-      } else {
-        errorMessage = error.message
-      }
-    }
-    
-    toast({
-      title: "下载失败",
-      description: errorMessage,
-      variant: "destructive",
-    })
-    
-    // 在控制台输出更详细的调试信息
-    console.log("下载失败详情:", {
-      taskId,
-      areaCode,
-      filename,
-      isExtractionResult,
-      isDiscriminationResult,
-      error
-    })
   }
-}
   const visibleFiles = expanded ? files : files.slice(0, 3)
 
   return (
@@ -890,10 +895,10 @@ const downloadFile = async (filename: string) => {
                           backgroundColor: file.isMarkdown
                             ? "#eff6ff"
                             : file.type === "json"
-                            ? "#f0fdf4"
-                            : file.type === "excel"
-                            ? "#f0fdf0"
-                            : "#f9fafb",
+                              ? "#f0fdf4"
+                              : file.type === "excel"
+                                ? "#f0fdf0"
+                                : "#f9fafb",
                         }}>
                         {getFileTypeDisplay(file.type, file.name)}
                       </Badge>
@@ -957,8 +962,8 @@ const downloadFile = async (filename: string) => {
               {isExtractionResult
                 ? "内容提取"
                 : isDiscriminationResult
-                ? "判别"
-                : "分块"}
+                  ? "判别"
+                  : "分块"}
               结果目录为空
             </span>
           )}
@@ -990,7 +995,7 @@ const getExtractedFoldersInfo = async (): Promise<any[]> => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     )
     console.log("提取文件夹API响应状态:", response.status)
 
@@ -1029,7 +1034,7 @@ const getJudgedFoldersInfo = async (): Promise<FolderInfo[]> => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     )
     console.log("判别文件夹API响应状态:", response.status)
 
@@ -1068,7 +1073,7 @@ const getMarkdownExtractionJsonFiles = async (): Promise<JsonFileInfo[]> => {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     )
     console.log("JSON文件API响应状态:", response.status)
 
@@ -1100,7 +1105,7 @@ const getMarkdownExtractionJsonFiles = async (): Promise<JsonFileInfo[]> => {
 const requestAIAnalysis = async (
   folderName: string,
   jsonFileName: string = "",
-  rulesDescription: string = ""
+  rulesDescription: string = "",
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const response = await fetch(extractionAndDiscriminationApi.analyzeWithAI, {
@@ -1133,7 +1138,7 @@ const requestAIAnalysis = async (
 // 任务提取请求
 const requestTaskExtraction = async (
   taskId: string,
-  extractionRules: ExtractionRule[]
+  extractionRules: ExtractionRule[],
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     console.log(`请求任务提取: ${taskId}`)
@@ -1148,7 +1153,7 @@ const requestTaskExtraction = async (
         body: JSON.stringify({
           extraction_rules: extractionRules,
         }),
-      }
+      },
     )
 
     console.log(`提取请求响应状态: ${response.status}`)
@@ -1179,7 +1184,7 @@ const requestTaskExtraction = async (
 // 任务判别请求
 const requestTaskDiscrimination = async (
   taskId: string,
-  judgmentRules: JudgmentRule[]
+  judgmentRules: JudgmentRule[],
 ): Promise<{ success: boolean; data?: any; error?: string }> => {
   try {
     console.log(`请求任务判别: ${taskId}`)
@@ -1194,7 +1199,7 @@ const requestTaskDiscrimination = async (
         body: JSON.stringify({
           judgment_rules: judgmentRules,
         }),
-      }
+      },
     )
 
     console.log(`判别请求响应状态: ${response.status}`)
@@ -1224,7 +1229,7 @@ const requestTaskDiscrimination = async (
 
 // 类型转换函数
 const convertFolderInfoToFilterPdfFolder = (
-  folderInfo: any
+  folderInfo: any,
 ): FilterPdfFolder => {
   const converted: FilterPdfFolder = {
     area_code: folderInfo.area_code || folderInfo.folder_name || "unknown",
@@ -1413,7 +1418,7 @@ const JudgedFileList: React.FC<{
         if (taskId) {
           // 从任务目录获取判别结果
           const response = await fetch(
-            extractionAndDiscriminationApi.getTaskDiscriminationResults(taskId)
+            extractionAndDiscriminationApi.getTaskDiscriminationResults(taskId),
           )
 
           if (response.ok) {
@@ -1433,18 +1438,20 @@ const JudgedFileList: React.FC<{
         } else {
           // 原来的逻辑（全局目录）
           const response = await fetch(
-            extractionAndDiscriminationApi.getJudgedFoldersInfo
+            extractionAndDiscriminationApi.getJudgedFoldersInfo,
           )
 
           if (response.ok) {
             const data = await response.json()
             const targetFolder = data.folders?.find(
-              (folder: any) => folder.folder_name === folderName
+              (folder: any) => folder.folder_name === folderName,
             )
 
             if (targetFolder) {
               const filesResponse = await fetch(
-                extractionAndDiscriminationApi.getFolderDetailedInfo(folderName)
+                extractionAndDiscriminationApi.getFolderDetailedInfo(
+                  folderName,
+                ),
               )
               if (filesResponse.ok) {
                 const filesData = await filesResponse.json()
@@ -1457,8 +1464,8 @@ const JudgedFileList: React.FC<{
                       const sizeResponse = await fetch(
                         extractionAndDiscriminationApi.getFileInfo(
                           folderName,
-                          filename
-                        )
+                          filename,
+                        ),
                       )
                       if (sizeResponse.ok) {
                         const sizeData = await sizeResponse.json()
@@ -1473,7 +1480,7 @@ const JudgedFileList: React.FC<{
                     } catch (error) {
                       console.warn(
                         `无法获取文件 ${filename} 的详细信息:`,
-                        error
+                        error,
                       )
                     }
 
@@ -1484,7 +1491,7 @@ const JudgedFileList: React.FC<{
                       fullPath: `/documents/results/${folderName}/${filename}`,
                       isMarkdown: isMarkdownFile(filename),
                     }
-                  })
+                  }),
                 )
 
                 setFiles(processedFiles)
@@ -1518,13 +1525,13 @@ const JudgedFileList: React.FC<{
         response = await fetch(
           extractionAndDiscriminationApi.downloadTaskDiscriminationFile(
             taskId,
-            filename
-          )
+            filename,
+          ),
         )
       } else {
         // 原来的逻辑（全局目录）
         response = await fetch(
-          extractionAndDiscriminationApi.getResultsFile(folderName, filename)
+          extractionAndDiscriminationApi.getResultsFile(folderName, filename),
         )
       }
 
@@ -1668,7 +1675,7 @@ type Column = {
 const LogList: React.FC<LogListProps> = ({ data, columns, type }) => {
   const { page, totalPages, pageData, next, prev, goTo } = usePagination(
     data,
-    10
+    10,
   )
 
   // 格式化日期时间
@@ -1822,7 +1829,7 @@ const ExtractionAndDiscrimination: React.FC<
   const [isDiscriminating, setIsDiscriminating] = useState(false)
   const { toast } = useToast()
   const [filterPdfFolders, setFilterPdfFolders] = useState<FilterPdfFolder[]>(
-    []
+    [],
   )
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [extractedFolderInfo, setExtractedFolderInfo] = useState<any[]>([])
@@ -1854,7 +1861,7 @@ const ExtractionAndDiscrimination: React.FC<
       setExtractedFolderInfo(extractedFolders)
 
       const convertedFolders = extractedFolders.map(
-        convertFolderInfoToFilterPdfFolder
+        convertFolderInfoToFilterPdfFolder,
       )
       setFilterPdfFolders(convertedFolders)
 
@@ -1875,7 +1882,7 @@ const ExtractionAndDiscrimination: React.FC<
       // 去重处理：基于 folder_name 去重
       const uniqueFolders = judgedFolders.filter(
         (folder, index, self) =>
-          index === self.findIndex((f) => f.folder_name === folder.folder_name)
+          index === self.findIndex((f) => f.folder_name === folder.folder_name),
       )
       console.log("去重后的判别文件夹:", uniqueFolders)
       setResultsFolderInfo(uniqueFolders)
@@ -1932,7 +1939,7 @@ const ExtractionAndDiscrimination: React.FC<
   // 内容提取函数
   const extractContentFromFolder = async (
     folderName: string,
-    extractionRules?: ExtractionRule[]
+    extractionRules?: ExtractionRule[],
   ): Promise<{
     content: string
     status: string
@@ -1975,7 +1982,7 @@ const ExtractionAndDiscrimination: React.FC<
             "Content-Type": "application/json",
           },
           body: JSON.stringify(requestBody),
-        }
+        },
       )
 
       if (!response.ok) {
@@ -2062,7 +2069,7 @@ const ExtractionAndDiscrimination: React.FC<
       throw new Error(
         `文件内容提取失败: ${
           error instanceof Error ? error.message : "未知错误"
-        }`
+        }`,
       )
     }
   }
@@ -2085,7 +2092,7 @@ const ExtractionAndDiscrimination: React.FC<
 
       const result = await requestTaskExtraction(
         selectedTask.id,
-        extractionRules
+        extractionRules,
       )
       return result
     } catch (error) {
@@ -2261,7 +2268,7 @@ const ExtractionAndDiscrimination: React.FC<
   // 导出提取结果
   const exportExtractionResults = () => {
     const completedLogs = extractionLogs.filter(
-      (log) => log.status === "completed"
+      (log) => log.status === "completed",
     )
 
     if (completedLogs.length === 0) {
@@ -2305,7 +2312,7 @@ const ExtractionAndDiscrimination: React.FC<
   // 导出判别结果
   const exportDiscriminationResults = () => {
     const completedLogs = discriminationLogs.filter(
-      (log) => log.status === "completed"
+      (log) => log.status === "completed",
     )
 
     if (completedLogs.length === 0) {
@@ -2366,7 +2373,7 @@ const ExtractionAndDiscrimination: React.FC<
   // 判别相关函数
   const handleAIAnalysis = async (
     folderName: string,
-    judgmentRule?: JudgmentRule
+    judgmentRule?: JudgmentRule,
   ) => {
     if (!selectedTask) {
       toast({
@@ -2402,7 +2409,7 @@ const ExtractionAndDiscrimination: React.FC<
       const result = await requestAIAnalysis(
         folderName,
         selectedFile,
-        rulesDescription
+        rulesDescription,
       )
 
       if (result.success) {
@@ -2513,7 +2520,7 @@ const ExtractionAndDiscrimination: React.FC<
         // 执行任务判别
         const result = await requestTaskDiscrimination(
           selectedTask.id,
-          judgmentRules
+          judgmentRules,
         )
 
         if (result.success) {
@@ -2634,7 +2641,7 @@ const ExtractionAndDiscrimination: React.FC<
           const result = await requestAIAnalysis(
             folder.folder_name,
             selectedFile,
-            rulesDescription
+            rulesDescription,
           )
 
           if (result.success) {
@@ -2810,8 +2817,8 @@ const ExtractionAndDiscrimination: React.FC<
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 页面标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             内容提取与判别
           </h1>
           <p className="text-lg text-gray-600">
@@ -2879,7 +2886,6 @@ const ExtractionAndDiscrimination: React.FC<
                 </CardTitle>
                 <CardDescription>
                   使用选定的任务规则提取文档内容
-                  
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -2930,9 +2936,6 @@ const ExtractionAndDiscrimination: React.FC<
                       </AlertDescription>
                     </Alert>
                   )}
-
-                  
-                  
                 </div>
               </CardContent>
             </Card>
@@ -3325,16 +3328,16 @@ const ExtractionAndDiscrimination: React.FC<
                             value === "completed"
                               ? "bg-green-500"
                               : value === "error"
-                              ? "bg-red-500"
-                              : "bg-blue-500"
+                                ? "bg-red-500"
+                                : "bg-blue-500"
                           }`}
                         />
                         <span className="text-xs whitespace-nowrap">
                           {value === "completed"
                             ? "已完成"
                             : value === "error"
-                            ? "错误"
-                            : "处理中"}
+                              ? "错误"
+                              : "处理中"}
                         </span>
                       </div>
                     ),
@@ -3447,16 +3450,16 @@ const ExtractionAndDiscrimination: React.FC<
                             value === "completed"
                               ? "bg-green-500"
                               : value === "error"
-                              ? "bg-red-500"
-                              : "bg-blue-500"
+                                ? "bg-red-500"
+                                : "bg-blue-500"
                           }`}
                         />
                         <span className="text-xs whitespace-nowrap">
                           {value === "completed"
                             ? "已完成"
                             : value === "error"
-                            ? "错误"
-                            : "处理中"}
+                              ? "错误"
+                              : "处理中"}
                         </span>
                       </div>
                     ),

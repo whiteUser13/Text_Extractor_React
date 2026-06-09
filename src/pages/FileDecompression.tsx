@@ -53,7 +53,7 @@ const FileDecompression: React.FC = () => {
   const [allFiles, setAllFiles] = useState<FileInfo[]>([])
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [processedFilesSet, setProcessedFilesSet] = useState<Set<string>>(
-    new Set()
+    new Set(),
   )
   // 6.2 筛选条件状态
   const [filterRules, setFilterRules] = useState<FilterRule[]>([])
@@ -85,7 +85,7 @@ const FileDecompression: React.FC = () => {
     if (!selectedTaskId) return []
     // 按任务ID读取专属日志
     const savedLogs = sessionStorage.getItem(
-      `decompressionLogs_${selectedTaskId}`
+      `decompressionLogs_${selectedTaskId}`,
     )
     return savedLogs ? JSON.parse(savedLogs) : []
   })
@@ -155,13 +155,15 @@ const FileDecompression: React.FC = () => {
       const data = await response.json()
       if (data.success || data.tasks) {
         // 【新增】：如果当前有选中的任务并且它有sceneId，则只显示同一场景下的任务
-        let filteredTasks = data.tasks || [];
-        
+        let filteredTasks = data.tasks || []
+
         if (selectedTask?.sceneId) {
-          filteredTasks = filteredTasks.filter(task => task.sceneId === selectedTask.sceneId);
+          filteredTasks = filteredTasks.filter(
+            (task) => task.sceneId === selectedTask.sceneId,
+          )
         }
-        
-        setTasks(filteredTasks);
+
+        setTasks(filteredTasks)
       } else {
         toast({
           title: "获取任务列表失败",
@@ -247,7 +249,7 @@ const FileDecompression: React.FC = () => {
       setSelectedFiles(new Set())
     }
   }
-    // 新增：全选/取消全选 未处理的压缩包
+  // 新增：全选/取消全选 未处理的压缩包
   // 新增：全选/取消全选 未处理的压缩包（支持传入 checked 控制）
   const handleSelectCompressed = (checked?: boolean) => {
     const compressedIds = allFiles
@@ -269,7 +271,8 @@ const FileDecompression: React.FC = () => {
     }
 
     const allSelected =
-      compressedIds.length > 0 && compressedIds.every((id) => selectedFiles.has(id))
+      compressedIds.length > 0 &&
+      compressedIds.every((id) => selectedFiles.has(id))
 
     const newSet = new Set(selectedFiles)
     if (allSelected) compressedIds.forEach((id) => newSet.delete(id))
@@ -279,9 +282,8 @@ const FileDecompression: React.FC = () => {
 
   // 8.3 解压处理
   const startExtraction = async () => {
+    console.log("selectedTaskId:", selectedTaskId)
 
-    console.log("selectedTaskId:", selectedTaskId);
-    
     if (!selectedTaskId) {
       toast({
         title: "错误",
@@ -372,7 +374,9 @@ const FileDecompression: React.FC = () => {
       const regData = await regResp.json()
       console.log("DEBUG register response:", regResp.status, regData)
       if (!regResp.ok || !regData.success || !regData.stream_id) {
-        throw new Error(regData.error || regData.message || "注册 stream_id 失败")
+        throw new Error(
+          regData.error || regData.message || "注册 stream_id 失败",
+        )
       }
       streamId = regData.stream_id
     } catch (err: any) {
@@ -387,8 +391,8 @@ const FileDecompression: React.FC = () => {
 
     // 使用短 stream_id 建立 SSE 连接
     const esUrl = `${api.decompressionClassify}?stream_id=${encodeURIComponent(
-       streamId ?? ""
-     )}&token=${encodeURIComponent(localStorage.getItem("token") ?? "")}`
+      streamId ?? "",
+    )}&token=${encodeURIComponent(localStorage.getItem("token") ?? "")}`
     if (eventSourceRef.current) eventSourceRef.current.close()
 
     const es = new EventSource(esUrl, { withCredentials: true })
@@ -400,7 +404,7 @@ const FileDecompression: React.FC = () => {
         const updatedLogs = [...prev, text]
         sessionStorage.setItem(
           `decompressionLogs_${selectedTaskId}`,
-          JSON.stringify(updatedLogs)
+          JSON.stringify(updatedLogs),
         )
         return updatedLogs
       })
@@ -552,7 +556,7 @@ const FileDecompression: React.FC = () => {
       const response = await fetch(
         `${api.decompressionClassify.replace(
           "/extract-and-classify-stream",
-          ""
+          "",
         )}/pdf-cut/${selectedTaskId}`,
         {
           method: "POST",
@@ -564,7 +568,7 @@ const FileDecompression: React.FC = () => {
             extraction_rules: [], // 可以从任务配置中获取规则，或使用默认规则
             selected_files: selectedFileNames,
           }),
-        }
+        },
       )
 
       const data = await response.json()
@@ -625,7 +629,7 @@ const FileDecompression: React.FC = () => {
     }
     // 切换任务时，加载该任务的专属日志
     const taskSpecificLogs = sessionStorage.getItem(
-      `decompressionLogs_${selectedTaskId}`
+      `decompressionLogs_${selectedTaskId}`,
     )
     setExtractLogs(taskSpecificLogs ? JSON.parse(taskSpecificLogs) : [])
     fetchFiles()
@@ -677,7 +681,7 @@ const FileDecompression: React.FC = () => {
           status: file.status || "pending",
           taskId: selectedTaskId,
           isProcessed: processedFiles.includes(
-            file.name.replace(/\.[^/.]+$/, "")
+            file.name.replace(/\.[^/.]+$/, ""),
           ),
           folderName: folderName, // 新增字段：子文件夹名称
         }
@@ -742,8 +746,8 @@ const FileDecompression: React.FC = () => {
   })
   const unprocessedCompressed = compressedFiles.filter((f) => !f.isProcessed)
   const isCompressedSelected =
-  unprocessedCompressed.length > 0 &&
-  unprocessedCompressed.every((f) => selectedFiles.has(f.id))
+    unprocessedCompressed.length > 0 &&
+    unprocessedCompressed.every((f) => selectedFiles.has(f.id))
 
   const unprocessedFiles = allFiles.filter((file) => !file.isProcessed)
   const isAllSelected =
@@ -763,8 +767,8 @@ const FileDecompression: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 页面标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
             文件解压缩与筛选处理
           </h1>
           <p className="text-lg text-gray-600">
@@ -928,8 +932,8 @@ const FileDecompression: React.FC = () => {
                     {totalFilesToProcess > 0
                       ? `${processedFilesCount}/${totalFilesToProcess}`
                       : isProcessing
-                      ? `${processedFilesCount} 已处理`
-                      : "0"}
+                        ? `${processedFilesCount} 已处理`
+                        : "0"}
                   </div>
                 </div>
 
@@ -941,8 +945,8 @@ const FileDecompression: React.FC = () => {
                         width: `${Math.min(
                           100,
                           Math.round(
-                            (processedFilesCount / totalFilesToProcess) * 100
-                          )
+                            (processedFilesCount / totalFilesToProcess) * 100,
+                          ),
                         )}%`,
                       }}
                     />
@@ -1074,8 +1078,8 @@ const FileDecompression: React.FC = () => {
                                     ? "包含"
                                     : "不包含"
                                   : rule.condition === "greater_than"
-                                  ? "大于"
-                                  : "小于"}
+                                    ? "大于"
+                                    : "小于"}
                               </span>
 
                               <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
@@ -1127,53 +1131,52 @@ const FileDecompression: React.FC = () => {
                       <div className="space-y-2 min-w-max overflow-x-auto">
                         {/* 全选所有文件控制 */}
                         <div className="flex items-center space-x-3 py-2 px-3 bg-gray-50 rounded-lg border sticky top-0 z-10 mb-3">
-                        {/* 全选压缩包 放在最左侧 */}
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="select-compressed"
-                            checked={isCompressedSelected}
-                            onCheckedChange={(checked) =>
-                              handleSelectCompressed(checked as boolean)
-                            }
-                            className="data-[state=checked]:bg-blue-600"
-                          />
-                          <label
-                            htmlFor="select-compressed"
-                            className="text-sm cursor-pointer select-none text-gray-700">
-                            全选压缩包
-                          </label>
-                        </div>
-
-                        {/* 把 全选所有文件 的勾选框放到文字前面，而不是最左边 */}
-                        <div className="flex-1 flex items-center">
-                          <label
-                            htmlFor="select-all"
-                            className="flex items-center space-x-2 cursor-pointer text-sm font-medium w-full">
+                          {/* 全选压缩包 放在最左侧 */}
+                          <div className="flex items-center space-x-2">
                             <Checkbox
-                              id="select-all"
-                              checked={isAllSelected}
+                              id="select-compressed"
+                              checked={isCompressedSelected}
                               onCheckedChange={(checked) =>
-                                handleSelectAll(checked as boolean)
+                                handleSelectCompressed(checked as boolean)
                               }
                               className="data-[state=checked]:bg-blue-600"
                             />
-                            <span className="text-gray-800">
-                              全选所有文件
-                              {isPartialSelected && !isAllSelected
-                                ? ` (${selectedFiles.size}/${unprocessedFiles.length})`
-                                : isAllSelected
-                                ? ` (${unprocessedFiles.length})`
-                                : allFiles.length > 0 &&
-                                  allFiles.every((file) => file.isProcessed)
-                                ? ` (所有文件已完成第一步处理，可进行裁切)`
-                                : ""}
-                            </span>
-                          </label>
+                            <label
+                              htmlFor="select-compressed"
+                              className="text-sm cursor-pointer select-none text-gray-700">
+                              全选压缩包
+                            </label>
+                          </div>
+
+                          {/* 把 全选所有文件 的勾选框放到文字前面，而不是最左边 */}
+                          <div className="flex-1 flex items-center">
+                            <label
+                              htmlFor="select-all"
+                              className="flex items-center space-x-2 cursor-pointer text-sm font-medium w-full">
+                              <Checkbox
+                                id="select-all"
+                                checked={isAllSelected}
+                                onCheckedChange={(checked) =>
+                                  handleSelectAll(checked as boolean)
+                                }
+                                className="data-[state=checked]:bg-blue-600"
+                              />
+                              <span className="text-gray-800">
+                                全选所有文件
+                                {isPartialSelected && !isAllSelected
+                                  ? ` (${selectedFiles.size}/${unprocessedFiles.length})`
+                                  : isAllSelected
+                                    ? ` (${unprocessedFiles.length})`
+                                    : allFiles.length > 0 &&
+                                        allFiles.every(
+                                          (file) => file.isProcessed,
+                                        )
+                                      ? ` (所有文件已完成第一步处理，可进行裁切)`
+                                      : ""}
+                              </span>
+                            </label>
+                          </div>
                         </div>
-                      </div>
-
-
-
 
                         {/* 文件列表 */}
                         {sortedFiles.map((file) => {
@@ -1208,7 +1211,7 @@ const FileDecompression: React.FC = () => {
                                     if (canSelect) {
                                       // 只有可选择的文件才能被勾选
                                       const newSelectedFiles = new Set(
-                                        selectedFiles
+                                        selectedFiles,
                                       )
                                       if (checked) {
                                         newSelectedFiles.add(file.id)
@@ -1246,7 +1249,7 @@ const FileDecompression: React.FC = () => {
                                     <span>•</span>
                                     <span className="truncate max-w-[150px]">
                                       {new Date(
-                                        file.uploadTime
+                                        file.uploadTime,
                                       ).toLocaleDateString()}
                                     </span>
                                   </div>
@@ -1348,7 +1351,7 @@ const FileDecompression: React.FC = () => {
                             return count >= 2
                               ? `${prefix}<span class="text-red-600 font-semibold">${countStr}</span>${suffix}`
                               : `${prefix}${countStr}${suffix}`
-                          }
+                          },
                         )
 
                         return (
@@ -1358,14 +1361,14 @@ const FileDecompression: React.FC = () => {
                               ln.includes("✅")
                                 ? "text-green-700"
                                 : ln.includes("❌")
-                                ? "text-red-700"
-                                : ln.includes("📝")
-                                ? "text-blue-700"
-                                : ln.includes("📦")
-                                ? "text-orange-700"
-                                : ln.includes("📊")
-                                ? "text-purple-700"
-                                : "text-gray-700"
+                                  ? "text-red-700"
+                                  : ln.includes("📝")
+                                    ? "text-blue-700"
+                                    : ln.includes("📦")
+                                      ? "text-orange-700"
+                                      : ln.includes("📊")
+                                        ? "text-purple-700"
+                                        : "text-gray-700"
                             }`}
                             // 使用dangerouslySetInnerHTML解析带样式的文本
                             dangerouslySetInnerHTML={{ __html: processedLine }}
