@@ -26,7 +26,8 @@ export default defineConfig({
 
   // 添加服务器配置
   server: {
-    host: "localhost", // 确保主机正确
+    host: "0.0.0.0", // 确保主机正确
+    allowedHosts: true,
     port: 5173, // Vite 默认端口
     proxy: {
       // 代理所有以 /tasks 开头的请求
