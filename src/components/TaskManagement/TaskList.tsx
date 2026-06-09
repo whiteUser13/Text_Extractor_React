@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -17,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
-import { Trash2, Eye, Calendar, FileText, Edit, Plus, Download } from "lucide-react"
+import { Trash2, Eye, Calendar, FileText, Edit, Copy, Download } from "lucide-react"
 import type { Task } from "@/types"
 import { dataService } from "@/services/dataService"
 import { useToast } from "@/hooks/use-toast"
@@ -32,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { CreateTaskDialog } from "@/components/TaskManagement"
 import { deleteDeletedTaskFiles, deleteTaskByID, getDeletedTaskList } from "@/api/dashboard"
 import { useTaskStore } from "@/context/TaskContext"
@@ -66,6 +68,12 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
   const [isOpenUpdateTaskDialog, setIsOpenUpdateTaskDialog] = useState(false)
   const [isOpenCreateTaskDialog, setIsOpenCreateTaskDialog] = useState(false)
 
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const PAGE_SIZE = 15
+  // 搜索状态
+  const [searchText, setSearchText] = useState<string>("")
+
   const { selectedTaskId } = useTaskStore()
   
   useEffect(() => {
@@ -79,6 +87,7 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
         getDeletedTaskList(sceneId).then((result) => {
           if (result.success) {
             setTasks(result.data as ExtendedTask[]);
+            setCurrentPage(1)
           } else {
             setTasks([])
             toast({
@@ -101,6 +110,7 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
           ? dataService.getTasksByScene(sceneId)
           : dataService.getAllTasks()
         setTasks(filteredTasks)
+        setCurrentPage(1)
         console.log("loadTasks", filteredTasks)
       }
     } catch (error) {
@@ -369,6 +379,27 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
     }
   }
 
+  // 过滤任务（按搜索文本）
+  const filteredTasks = tasks.filter((task) =>
+    task.name.toLowerCase().includes(searchText.toLowerCase())
+  )
+
+  // 计算分页数据
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE))
+  const paginatedTasks = filteredTasks.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  // 保证当前页在有效范围内（当任务数变化时）
+  useEffect(() => {
+    const tp = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE))
+    setCurrentPage((prev) => Math.min(prev, tp))
+  }, [filteredTasks])
+
+  // 搜索改变时重置到第一页
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value)
+    setCurrentPage(1)
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -377,15 +408,24 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
           <CardDescription>
             管理所有审核任务，包括启用、禁用和删除操作
           </CardDescription>
+          <div className="mt-4">
+            <Input
+              placeholder="按任务名称搜索..."
+              value={searchText}
+              onChange={handleSearchChange}
+              className="max-w-sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          {tasks.length === 0 ? (
+          {filteredTasks.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg font-medium mb-2">暂无任务</p>
-              <p className="text-sm">点击"新建任务"按钮创建第一个审核任务</p>
+              <p className="text-lg font-medium mb-2">{searchText ? "未找到匹配的任务" : "暂无任务"}</p>
+              <p className="text-sm">{searchText ? "尝试修改搜索条件" : "点击\"新建任务\"按钮创建第一个审核任务"}</p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -411,7 +451,7 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tasks.map((task) => (
+                {paginatedTasks.map((task) => (
                   <TableRow key={task.id}>
                     {isDeletedTasks ? (
                       <>
@@ -495,23 +535,38 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePlusClick(task)}>
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateClick(task)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePlusClick(task)}>
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>复制为新任务</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleUpdateClick(task)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>编辑任务</TooltipContent>
+                            </Tooltip>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>删除任务</TooltipContent>
+                                </Tooltip>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -539,6 +594,34 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                 ))}
               </TableBody>
             </Table>
+            {/* 分页控件 */}
+            {filteredTasks.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-600">共 {filteredTasks.length} 条</div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                  >
+                    上一页
+                  </Button>
+                  <div className="text-sm">
+                    第 {currentPage} <span>/</span> {totalPages} 页
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
         {!isDeletedTasks && (

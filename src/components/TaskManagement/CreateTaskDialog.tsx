@@ -540,7 +540,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{/*  */}</DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!max-w-6xl max-h-[90vh] w-[90vw] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">新建审核任务</DialogTitle>
           <DialogDescription>
