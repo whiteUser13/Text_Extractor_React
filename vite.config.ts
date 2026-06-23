@@ -26,7 +26,7 @@ export default defineConfig({
 
   // 添加服务器配置
   server: {
-    host: "0.0.0.0", // 确保主机正确
+    host: "localhost", // 确保主机正确
     allowedHosts: true,
     port: 5173, // Vite 默认端口
     proxy: {
@@ -61,16 +61,16 @@ export default defineConfig({
         secure: false,
       },
       // 代理所有以 /auth-server 开头的请求,统一登录要求
-      "/auth-server": {
-        target: "http://10.100.224.56:35501",
-        changeOrigin: true,
-        secure: false,
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq, req) => {
-            console.log("Proxying:", req.url, "->", proxyReq.path)
-          })
-        },
-      },
+      // "/oauth2": {
+      //   target: "http://10.100.226.96:8238",
+      //   changeOrigin: true,
+      //   secure: false,
+      //   configure: (proxy) => {
+      //     proxy.on("proxyReq", (proxyReq, req) => {
+      //       console.log("Proxying:", req.url, "->", proxyReq.path)
+      //     })
+      //   },
+      // },
     },
   },
 })

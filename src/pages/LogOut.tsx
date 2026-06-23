@@ -31,7 +31,7 @@ export default function LogOut() {
         <div className="bg-white p-8 rounded shadow">
           <h2 className="text-2xl font-bold mb-6 text-center">登录</h2>
           <button
-            onClick={() => redirectToOAuthLogin()}
+            onClick={() => redirectToOAuthLogin({ forceLogin: true })}
             className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700">
             前往统一登录
           </button>

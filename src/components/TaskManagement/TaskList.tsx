@@ -558,16 +558,16 @@ const TaskList: React.FC<TaskListProps> = ({ onTasksChange, sceneId, sceneName, 
                               <TooltipContent>编辑任务</TooltipContent>
                             </Tooltip>
                             <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertDialogTrigger asChild>
                                     <Button variant="outline" size="sm">
                                       <Trash2 className="h-4 w-4 text-red-500" />
                                     </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>删除任务</TooltipContent>
-                                </Tooltip>
-                              </AlertDialogTrigger>
+                                  </AlertDialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>删除任务</TooltipContent>
+                              </Tooltip>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>确认删除</AlertDialogTitle>

@@ -1,11 +1,10 @@
 // src/pages/AuthCallback.tsx
 import { useEffect, useState } from "react"
-import Base64 from "base-64"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useUserStore } from "@/context/userStore"
-import { getUserInfo } from "@/api/auth"
+import { getUserInfo, redirectToOAuthLogin } from "@/api/auth"
 import website from "@/config/website"
-import { redirectToOAuthLogin } from "@/api/auth"
+import { LOGOUT_IN_PROGRESS_KEY } from "@/utils/oidcUtils"
 
 export default function AuthCallback() {
   const navigate = useNavigate()
@@ -19,71 +18,97 @@ export default function AuthCallback() {
     const code = params.get("code")
     const state = params.get("state")
     const error = params.get("error")
+    const expectedState = sessionStorage.getItem("oauth_state")
 
     if (error) {
-      throw new Error(`OAuth 登录失败: ${error}`)
+      const errorDescription = params.get("error_description")
+      setMessage(
+        errorDescription
+          ? `OAuth 登录失败: ${errorDescription}`
+          : `OAuth 登录失败: ${error}`,
+      )
+      setInitialized(true)
+      return
     }
 
     if (!code) {
       redirectToOAuthLogin()
-      throw new Error("缺少授权码 code")
+      return
     }
-    if (code) {
-      console.log("获取到授权码:", code)
-      handleAuthCode(code)
+
+    if (!state || !expectedState || state !== expectedState) {
+      setMessage("登录状态校验失败")
+      return
     }
+
+    handleAuthCode(code)
   }, [location])
 
   const handleAuthCode = async (code: string) => {
     try {
-      // 调用后端API换取token
-      const response = await fetch(website.unifyLoginURL + "/oauth2/token", {
+      const nonce = sessionStorage.getItem("oauth_nonce")
+      if (!nonce) {
+        throw new Error("缺少 OAuth nonce")
+      }
+
+      // 由业务后端持有 client_secret，并向 JC4A 换取和校验 token。
+      const response = await fetch("/api/auth/token", {
         method: "POST",
-        credentials: "omit",
+        credentials: "include",
         headers: {
-          Authorization:
-            "Basic " +
-            Base64.encode(`${website.applicationId}:${website.clientSecret}`),
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/json",
         },
-        body: new URLSearchParams({
-          grant_type: website.grantType,
-          code: code,
+        body: JSON.stringify({
+          code,
           redirect_uri: website.redirect_uri,
+          nonce,
         }),
       })
 
       const data = await response.json()
-      console.log(data)
+      if (!response.ok) {
+        throw new Error(data.error || "授权码换取 Token 失败")
+      }
 
       if (data.access_token) {
+        sessionStorage.removeItem(LOGOUT_IN_PROGRESS_KEY)
+        sessionStorage.removeItem("oauth_state")
+        sessionStorage.removeItem("oauth_nonce")
+        localStorage.removeItem("refresh_token")
+
         // 存储token
         localStorage.setItem("access_token", data.access_token)
         localStorage.setItem("token", data.access_token)
-        localStorage.setItem("refresh_token", data.refresh_token)
-        localStorage.setItem("id_token", data.id_token)
+        if (data.id_token) {
+          localStorage.setItem("id_token", data.id_token)
+        }
         localStorage.setItem(
           "expires_in",
           Math.floor(Date.now() / 1000) + data.expires_in,
         )
-        localStorage.setItem("scope", data.scope)
-        localStorage.setItem("token_type", data.token_type)
+        if (data.scope) {
+          localStorage.setItem("scope", data.scope)
+        }
+        if (data.token_type) {
+          localStorage.setItem("token_type", data.token_type)
+        }
 
-        // getUserInfo(data.access_token)
-        getUserInfo(data.access_token)
-          .then((result) => {
-            if (result.success) {
-              setUser(result.user)
-              navigate("/", { replace: true })
-            }
-          })
-          .catch((err) => {
-            navigate("/error", { state: { message: "获取用户信息失败" } })
-          })
+        const result = await getUserInfo(data.access_token)
+        if (!result.success) {
+          throw new Error(result.msg || "获取用户信息失败")
+        }
+
+        setUser(result.user)
+        navigate("/", { replace: true })
+      } else {
+        throw new Error("Token 响应中缺少 access_token")
       }
     } catch (error) {
       console.error("Token换取失败:", error)
+      setMessage(error instanceof Error ? error.message : "登录失败")
       navigate("/error", { state: { message: "登录失败" } })
+    } finally {
+      setInitialized(true)
     }
   }
   // const getUserInfo = async (access_token: string) => {

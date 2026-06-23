@@ -1,10 +1,8 @@
 // src/api/auth.ts
 import apiClient from "./index"
-import axios from "axios"
 import { User } from "@/context/userStore"
 import { SHA256 } from "crypto-js"
 import website from "@/config/website"
-import Base64 from "base-64"
 
 export const encryptPassword = (password: string): string => {
   // 使用SHA256并转换为小写
@@ -30,11 +28,10 @@ interface RegisterResult {
 // 定义返回类型接口
 interface RefreshTokenResponse {
   access_token: string
-  refresh_token: string
-  expires_in: string
+  expires_in: number
   token_type: string
   scope: string
-  id_token: string
+  id_token?: string
 }
 interface RefreshTokenResult {
   success: boolean
@@ -82,15 +79,24 @@ interface UserResult {
 }
 export async function getUserInfo(access_token: string): Promise<UserResult> {
   try {
-    const res = await apiClient.get("/auth-server/userinfo", {
-      baseURL: "http://10.100.224.56:35501",
+    const res = await apiClient.get("/oauth2/userinfo", {
+      baseURL: website.JC4AServiceURL,
     })
     if (res.status === 200) {
+      console.log(res.data)
+
+      // const user = {
+      //   id: res.data.id || res.data.username,
+      //   username: res.data.name || res.data.username,
+      //   group_name: res.data.departments[0].name || res.data.sub,
+      // }
       const user = {
-        id: res.data.id,
-        username: res.data.username,
-        group_name: res.data.departments[0].name,
+        id: res.data.username,
+        username: res.data.name,
+        group_name: res.data.sub,
       }
+      console.log(user)
+
       return {
         success: true,
         user: user,
@@ -119,42 +125,29 @@ export async function getUserInfo(access_token: string): Promise<UserResult> {
     }
   }
 }
-const oauthClient = axios.create({})
-export async function refreshTokenApi(
-  refresh_token: string,
-): Promise<RefreshTokenResult> {
+export async function refreshTokenApi(): Promise<RefreshTokenResult> {
   try {
-    const res = await oauthClient.post(
-      "/auth-server/oauth2/token",
-      {
-        grant_type: "refresh_token",
-        refresh_token: refresh_token,
-      },
-      {
-        baseURL: "http://10.100.224.56:35501",
-        headers: {
-          Authorization:
-            "Basic " +
-            Base64.encode(`${website.applicationId}:${website.clientSecret}`),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      },
-    )
-    if (res.status === 200) {
+    const response = await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+    })
+    const data = await response.json()
+
+    if (response.ok) {
       return {
         success: true,
-        data: res.data,
+        data,
         msg: "刷新成功",
-        code: 200,
+        code: response.status,
       }
     } else {
       return {
         success: false,
         msg:
-          res.data?.error_description ||
-          res.data?.error ||
-          `请求失败: ${res.status}`,
-        code: res.status,
+          data?.error_description ||
+          data?.error ||
+          `请求失败: ${response.status}`,
+        code: response.status,
       }
     }
   } catch (error: any) {
@@ -197,26 +190,49 @@ export async function register(
   }
 }
 
+interface OAuthLoginOptions {
+  forceLogin?: boolean
+}
+
+const createOAuthRandomValue = () => {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  )
+}
+
 // 创建跳转函数
-export function redirectToOAuthLogin() {
+export function redirectToOAuthLogin(options: OAuthLoginOptions = {}) {
   const form = document.createElement("form")
   form.method = "GET"
-  form.action = website.unifyLoginURL + "/oauth2/authorize"
+  form.action = website.JC4AServiceURL + "/oauth2/authorize"
   form.style.display = "none"
 
-  const params = {
+  const state = createOAuthRandomValue()
+  const nonce = createOAuthRandomValue()
+  sessionStorage.setItem("oauth_state", state)
+  sessionStorage.setItem("oauth_nonce", nonce)
+
+  const params: Record<string, string> = {
     response_type: "code",
-    client_id: website.applicationId,
-    scope: "all",
+    client_id: website.APPID,
+    scope: "openid profile",
     redirect_uri: website.redirect_uri,
+    state,
+    nonce,
   }
 
-  Object.keys(params).forEach((key) => {
+  if (options.forceLogin) {
+    params.prompt = "login"
+    params.max_age = "0"
+  }
+
+  Object.entries(params).forEach(([key, value]) => {
     const input = document.createElement("input")
     input.type = "hidden"
     input.name = key
-    // 使用类型断言告诉TypeScript key是params的合法键名
-    input.value = params[key as keyof typeof params]
+    input.value = value
     form.appendChild(input)
   })
 

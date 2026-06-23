@@ -1,35 +1,32 @@
-// utils/oidcLogout.ts
 import website from "@/config/website"
 import { clearLocalSession } from "./store"
 
+export const LOGOUT_IN_PROGRESS_KEY = "oauth_logout_in_progress"
+
 /**
- * OIDC登出 - 使用表单POST方式
- * @param params 登出参数
+ * Call the business backend to revoke the OAuth2 access token, then clear the
+ * browser session. Native fetch is used to avoid the Axios 401 interceptor
+ * recursively triggering logout.
  */
-export const oidcLogout = (access_token: string) => {
-  const params = {
-    client_id: website.applicationId,
-    redirect_uri: website.logout_redirect_uri,
-    access_token: access_token,
+export async function oidcLogout(accessToken: string): Promise<void> {
+  sessionStorage.setItem(LOGOUT_IN_PROGRESS_KEY, "true")
+
+  try {
+    const response = await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      console.error("撤销 OAuth2 token 失败:", response.status)
+    }
+  } finally {
+    clearLocalSession()
+    sessionStorage.setItem(LOGOUT_IN_PROGRESS_KEY, "true")
+    window.location.replace(website.logout_redirect_uri)
   }
-
-  // 3. 先清除本地会话（确保即使登出失败，用户也无法继续访问）
-  clearLocalSession()
-
-  // 4. 创建并提交表单
-  const form = document.createElement("form")
-  form.method = "GET"
-  form.action = website.unifyLoginURL + "/logout" // 根据实际地址调整
-  form.style.display = "none"
-  Object.keys(params).forEach((key) => {
-    const input = document.createElement("input")
-    input.type = "hidden"
-    input.name = key
-    // 使用类型断言告诉TypeScript key是params的合法键名
-    input.value = params[key as keyof typeof params]
-    form.appendChild(input)
-  })
-
-  document.body.appendChild(form)
-  form.submit()
 }
